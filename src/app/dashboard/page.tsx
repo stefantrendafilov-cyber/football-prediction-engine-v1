@@ -1,0 +1,53 @@
+import { supabase } from '@/lib/supabase';
+import EngineMonitor from '@/components/EngineMonitor';
+
+export const dynamic = 'force-dynamic';
+
+export default async function DashboardPage() {
+    const now = new Date();
+    // Buffer: Show games that started up to 2 hours ago
+    const bufferNow = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
+    const seventyTwoHoursFromNow = new Date(now.getTime() + 72 * 60 * 60 * 1000).toISOString();
+
+    // 1. Fetch latest cycle
+    const { data: latestCycle } = await supabase
+      .from('engine_cycles')
+      .select('*')
+      .order('started_at_utc', { ascending: false })
+      .limit(1)
+      .single();
+
+    // 2. Fetch predictions
+    const { data: rawPredictions, error } = await supabase
+      .from('predictions')
+      .select(`
+        *,
+        fixtures!inner (
+          kickoff_at,
+          home_team:teams!fixtures_home_team_id_fkey (name),
+          away_team:teams!fixtures_away_team_id_fkey (name),
+          leagues (name)
+        )
+      `)
+      .eq('decision', 'PUBLISH')
+      .gte('model_probability', 0.65)
+      .gte('fixtures.kickoff_at', bufferNow)
+      .lte('fixtures.kickoff_at', seventyTwoHoursFromNow)
+      .order('kickoff_at', { foreignTable: 'fixtures', ascending: true })
+      .limit(100);
+
+    if (error) {
+      console.error('Dashboard Query Error:', error);
+    }
+
+    const predictions = rawPredictions || [];
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-50 p-8">
+      <EngineMonitor 
+        initialPredictions={predictions} 
+        initialLatestCycle={latestCycle} 
+      />
+    </div>
+  );
+}
