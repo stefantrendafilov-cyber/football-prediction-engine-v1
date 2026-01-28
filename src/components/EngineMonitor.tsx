@@ -7,6 +7,18 @@ import { Badge } from '@/components/ui/badge';
 import { Play, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
+function formatTime(dateStr: string | undefined): string {
+  if (!dateStr) return 'N/A';
+  const d = new Date(dateStr);
+  return d.toISOString().slice(11, 19);
+}
+
+function formatDate(dateStr: string | undefined): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toISOString().slice(0, 10);
+}
+
 interface EngineMonitorProps {
   initialPredictions: any[];
   initialLatestCycle: any;
@@ -156,7 +168,7 @@ export default function EngineMonitor({ initialPredictions, initialLatestCycle }
         <div className="flex flex-col col-span-2 md:col-span-1">
           <span className="text-zinc-500 uppercase">Last Run</span>
           <span className="text-zinc-400">
-            {latestCycle?.started_at_utc ? new Date(latestCycle.started_at_utc).toLocaleTimeString() : 'N/A'}
+            {formatTime(latestCycle?.started_at_utc)}
           </span>
         </div>
         {latestCycle?.error && (
@@ -178,12 +190,12 @@ export default function EngineMonitor({ initialPredictions, initialLatestCycle }
                     <Badge variant="outline" className="text-green-500 border-green-500/50 bg-green-500/10">
                       {prediction.decision}
                     </Badge>
-                    <span className="text-[10px] text-zinc-500 uppercase font-mono">{new Date(prediction.created_at).toLocaleTimeString()}</span>
+                    <span className="text-[10px] text-zinc-500 uppercase font-mono">{formatTime(prediction.created_at)}</span>
                   </div>
                   <CardTitle className="text-xl font-black leading-tight text-white tracking-tight">
                     {prediction.fixtures?.home_team?.name} <span className="text-zinc-500 font-normal mx-1">vs</span> {prediction.fixtures?.away_team?.name}
                   </CardTitle>
-                  <p className="text-xs text-zinc-400 font-medium">{prediction.fixtures?.leagues?.name} • {new Date(prediction.fixtures?.kickoff_at).toLocaleDateString()}</p>
+                  <p className="text-xs text-zinc-400 font-medium">{prediction.fixtures?.leagues?.name} • {formatDate(prediction.fixtures?.kickoff_at)}</p>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">

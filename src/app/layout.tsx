@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import VisualEditsMessenger from "../visual-edits/VisualEditsMessenger";
+import VisualEditsWrapper from "@/components/VisualEditsWrapper";
 import ErrorReporter from "@/components/ErrorReporter";
 import Script from "next/script";
 import { Toaster } from 'sonner';
@@ -36,8 +36,8 @@ export default function RootLayout({
           data-custom-data='{"appName": "YourApp", "version": "1.0.0", "greeting": "hi"}'
         />
         {children}
-        <Toaster position="bottom-right" richColors theme="dark" />
-        <VisualEditsMessenger />
+          <Toaster position="bottom-right" richColors theme="dark" />
+          <VisualEditsWrapper />
       </body>
     </html>
   );

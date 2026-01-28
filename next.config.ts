@@ -1,3 +1,14 @@
+if (typeof globalThis.localStorage !== 'undefined' && typeof globalThis.localStorage.getItem !== 'function') {
+  globalThis.localStorage = {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+    clear: () => {},
+    key: () => null,
+    length: 0
+  } as Storage;
+}
+
 import type { NextConfig } from "next";
 import path from "node:path";
 
