@@ -79,3 +79,13 @@ export async function getLeagueAvgGoals(leagueId: number) {
 
   return count > 0 ? totalGoals / count : 2.5;
 }
+
+export async function getFixturesByIds(fixtureIds: number[]) {
+  if (fixtureIds.length === 0) return [];
+  
+  const data = await fetchSportMonks(`fixtures/multi/${fixtureIds.join(',')}`, {
+    include: 'scores;state',
+  });
+
+  return data.data || [];
+}

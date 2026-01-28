@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Play, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
+import { Play, Loader2, RefreshCw, AlertCircle, History } from 'lucide-react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 
 function formatTime(dateStr: string | undefined): string {
@@ -129,16 +130,23 @@ export default function EngineMonitor({ initialPredictions, initialLatestCycle }
           <h1 className="text-4xl font-bold tracking-tighter">Engine Monitor</h1>
           <p className="text-zinc-400 mt-2">Live prediction stream from the Poisson/Elo model.</p>
         </div>
-        <div className="flex gap-4">
-          <button
-            onClick={handleTrigger}
-            disabled={isTriggering || isPolling}
-            className={`flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 rounded-lg text-sm font-medium transition-all transform active:scale-95 ${(isTriggering || isPolling) ? 'cursor-not-allowed' : ''}`}
-          >
-            {(isTriggering || isPolling) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-            {(isTriggering || isPolling) ? 'Analyzing...' : 'Trigger Engine'}
-          </button>
-        </div>
+<div className="flex gap-4">
+            <Link
+              href="/dashboard/history"
+              className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm font-medium transition-all"
+            >
+              <History className="w-4 h-4" />
+              History
+            </Link>
+            <button
+              onClick={handleTrigger}
+              disabled={isTriggering || isPolling}
+              className={`flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 rounded-lg text-sm font-medium transition-all transform active:scale-95 ${(isTriggering || isPolling) ? 'cursor-not-allowed' : ''}`}
+            >
+              {(isTriggering || isPolling) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+              {(isTriggering || isPolling) ? 'Analyzing...' : 'Trigger Engine'}
+            </button>
+          </div>
       </div>
 
       {/* Debug Panel (PART F) */}
