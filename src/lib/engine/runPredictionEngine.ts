@@ -105,6 +105,10 @@ export async function runPredictionEngine(cycleId?: string) {
             await supabase.from('teams').upsert([{ id: homeTeam.id, name: homeTeam.name }, { id: awayTeam.id, name: awayTeam.name }], { onConflict: 'id' });
         }
         
+        if (fixture.league?.id && fixture.league?.name) {
+          await supabase.from('leagues').upsert({ id: fixture.league.id, name: fixture.league.name }, { onConflict: 'id' });
+        }
+        
         await supabase.from('fixtures').upsert({
           id: fixtureId,
           league_id: leagueId,

@@ -34,7 +34,6 @@ export default async function HistoryPage() {
     total: settledPredictions.length,
     won: settledPredictions.filter((p) => p.outcome === 'won').length,
     lost: settledPredictions.filter((p) => p.outcome === 'lost').length,
-    push: settledPredictions.filter((p) => p.outcome === 'push').length,
   };
 
   const winRate = stats.total > 0 ? ((stats.won / (stats.won + stats.lost)) * 100) : 0;

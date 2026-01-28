@@ -149,43 +149,35 @@ export default function EngineMonitor({ initialPredictions, initialLatestCycle }
           </div>
       </div>
 
-      {/* Debug Panel (PART F) */}
-      <div className="mb-8 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl font-mono text-[11px]">
-        <div className="flex flex-col">
-          <span className="text-zinc-500 uppercase">Latest Cycle</span>
-          <span className={`font-bold ${latestCycle?.status === 'SUCCESS' ? 'text-green-500' : latestCycle?.status === 'FAILED' ? 'text-red-500' : 'text-blue-500'}`}>
-            {latestCycle?.status || 'NO RUNS YET'}
-          </span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-zinc-500 uppercase">Found</span>
-          <span className="text-zinc-100">{latestCycle?.fixtures_found || 0} fixtures</span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-zinc-500 uppercase">Processed</span>
-          <span className="text-zinc-100">{latestCycle?.fixtures_processed || 0}</span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-zinc-500 uppercase">Published</span>
-          <span className="text-green-400 font-bold">{latestCycle?.predictions_published || 0}</span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-zinc-500 uppercase">Blocked</span>
-          <span className="text-zinc-400">{latestCycle?.predictions_blocked || 0}</span>
-        </div>
-        <div className="flex flex-col col-span-2 md:col-span-1">
-          <span className="text-zinc-500 uppercase">Last Run</span>
-          <span className="text-zinc-400">
-            {formatTime(latestCycle?.started_at_utc)}
-          </span>
-        </div>
-        {latestCycle?.error && (
-          <div className="col-span-full mt-2 pt-2 border-t border-zinc-800 text-red-400 flex items-center gap-2">
-            <AlertCircle className="w-3 h-3" />
-            <span>{latestCycle.error}</span>
+        {/* Debug Panel (PART F) */}
+        <div className="mb-8 grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl font-mono text-[11px]">
+          <div className="flex flex-col">
+            <span className="text-zinc-500 uppercase">Latest Cycle</span>
+            <span className={`font-bold ${latestCycle?.status === 'SUCCESS' ? 'text-green-500' : latestCycle?.status === 'FAILED' ? 'text-red-500' : 'text-blue-500'}`}>
+              {latestCycle?.status || 'NO RUNS YET'}
+            </span>
           </div>
-        )}
-      </div>
+          <div className="flex flex-col">
+            <span className="text-zinc-500 uppercase">Fixtures Found</span>
+            <span className="text-zinc-100">{latestCycle?.fixtures_found || 0}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-zinc-500 uppercase">Predictions Published</span>
+            <span className="text-green-400 font-bold">{latestCycle?.predictions_published || 0}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-zinc-500 uppercase">Last Run</span>
+            <span className="text-zinc-400">
+              {formatTime(latestCycle?.started_at_utc)}
+            </span>
+          </div>
+          {latestCycle?.error && (
+            <div className="col-span-full mt-2 pt-2 border-t border-zinc-800 text-red-400 flex items-center gap-2">
+              <AlertCircle className="w-3 h-3" />
+              <span>{latestCycle.error}</span>
+            </div>
+          )}
+        </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {predictions?.map((prediction: any) => {
@@ -203,7 +195,7 @@ export default function EngineMonitor({ initialPredictions, initialLatestCycle }
                   <CardTitle className="text-xl font-black leading-tight text-white tracking-tight">
                     {prediction.fixtures?.home_team?.name} <span className="text-zinc-500 font-normal mx-1">vs</span> {prediction.fixtures?.away_team?.name}
                   </CardTitle>
-                  <p className="text-xs text-zinc-400 font-medium">{prediction.fixtures?.leagues?.name} • {formatDate(prediction.fixtures?.kickoff_at)}</p>
+                  <p className="text-xs text-zinc-400 font-medium">{prediction.fixtures?.leagues?.name} • {formatDate(prediction.fixtures?.kickoff_at)} • {formatTime(prediction.fixtures?.kickoff_at)}</p>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">

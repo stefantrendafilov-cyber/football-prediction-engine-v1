@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Loader2, ArrowLeft, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { RefreshCw, Loader2, ArrowLeft, TrendingUp, TrendingDown } from 'lucide-react';
 import { toast } from 'sonner';
 
 function formatDate(dateStr: string | undefined): string {
@@ -25,7 +25,6 @@ interface HistoryClientProps {
     total: number;
     won: number;
     lost: number;
-    push: number;
   };
   winRate: number;
 }
@@ -35,7 +34,7 @@ export default function HistoryClient({ initialPredictions, stats, winRate }: Hi
   const [currentStats, setCurrentStats] = useState(stats);
   const [currentWinRate, setCurrentWinRate] = useState(winRate);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'won' | 'lost' | 'push'>('all');
+  const [filter, setFilter] = useState<'all' | 'won' | 'lost'>('all');
 
   const handleSync = async () => {
     if (isSyncing) return;
@@ -83,13 +82,6 @@ export default function HistoryClient({ initialPredictions, stats, winRate }: Hi
             LOST
           </Badge>
         );
-      case 'push':
-        return (
-          <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/50">
-            <Minus className="w-3 h-3 mr-1" />
-            PUSH
-          </Badge>
-        );
       default:
         return null;
     }
@@ -116,43 +108,37 @@ export default function HistoryClient({ initialPredictions, stats, winRate }: Hi
         </button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-        <Card className="bg-zinc-900 border-zinc-800">
-          <CardContent className="p-4">
-            <p className="text-xs text-zinc-500 uppercase">Total Settled</p>
-            <p className="text-2xl font-bold text-zinc-100">{currentStats.total}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-zinc-900 border-zinc-800">
-          <CardContent className="p-4">
-            <p className="text-xs text-zinc-500 uppercase">Won</p>
-            <p className="text-2xl font-bold text-green-400">{currentStats.won}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-zinc-900 border-zinc-800">
-          <CardContent className="p-4">
-            <p className="text-xs text-zinc-500 uppercase">Lost</p>
-            <p className="text-2xl font-bold text-red-400">{currentStats.lost}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-zinc-900 border-zinc-800">
-          <CardContent className="p-4">
-            <p className="text-xs text-zinc-500 uppercase">Push</p>
-            <p className="text-2xl font-bold text-yellow-400">{currentStats.push}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-zinc-900 border-zinc-800">
-          <CardContent className="p-4">
-            <p className="text-xs text-zinc-500 uppercase">Win Rate</p>
-            <p className={`text-2xl font-bold ${currentWinRate >= 50 ? 'text-green-400' : 'text-red-400'}`}>
-              {currentWinRate.toFixed(1)}%
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <Card className="bg-zinc-900 border-zinc-800">
+            <CardContent className="p-4">
+              <p className="text-xs text-zinc-500 uppercase">Total Settled</p>
+              <p className="text-2xl font-bold text-zinc-100">{currentStats.total}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-zinc-900 border-zinc-800">
+            <CardContent className="p-4">
+              <p className="text-xs text-zinc-500 uppercase">Won</p>
+              <p className="text-2xl font-bold text-green-400">{currentStats.won}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-zinc-900 border-zinc-800">
+            <CardContent className="p-4">
+              <p className="text-xs text-zinc-500 uppercase">Lost</p>
+              <p className="text-2xl font-bold text-red-400">{currentStats.lost}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-zinc-900 border-zinc-800">
+            <CardContent className="p-4">
+              <p className="text-xs text-zinc-500 uppercase">Win Rate</p>
+              <p className={`text-2xl font-bold ${currentWinRate >= 50 ? 'text-green-400' : 'text-red-400'}`}>
+                {currentWinRate.toFixed(1)}%
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
       <div className="flex gap-2 mb-6">
-        {(['all', 'won', 'lost', 'push'] as const).map((f) => (
+        {(['all', 'won', 'lost'] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -198,7 +184,7 @@ export default function HistoryClient({ initialPredictions, stats, winRate }: Hi
                   {prediction.fixtures?.away_team?.name}
                 </CardTitle>
                 <p className="text-xs text-zinc-400 font-medium">
-                  {prediction.fixtures?.leagues?.name}
+                  {prediction.fixtures?.leagues?.name} • {formatTime(prediction.fixtures?.kickoff_at)}
                 </p>
               </CardHeader>
               <CardContent>
