@@ -1,9 +1,17 @@
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 import HistoryClient from '@/components/HistoryClient';
 
 export const dynamic = 'force-dynamic';
 
 export default async function HistoryPage() {
+  const supabase = await createClient();
+  
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    redirect('/login');
+  }
+
   const { data: predictions, error } = await supabase
     .from('predictions')
     .select(`

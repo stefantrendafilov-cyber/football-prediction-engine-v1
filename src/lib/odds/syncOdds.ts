@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabase } from '../supabase-admin';
 import { getSportMonksOddsForFixtures } from '../clients/sportmonksOdds';
 import { getUpcomingFixtures } from '../clients/sportmonks';
 

@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabase } from '../supabase-admin';
 import { getUpcomingFixtures, getTeamHistory, getLeagueAvgGoals } from '../clients/sportmonks';
 import { computeOddsAveragesForFixture } from '../jobs/computeOddsAverages';
 import { syncOddsPointsForFixture } from '../odds/syncOdds';

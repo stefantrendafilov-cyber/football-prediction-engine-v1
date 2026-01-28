@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabase } from '../supabase-admin';
 import { MARKETS, ENGINE_RULES, OU_LINES } from '../constants/markets';
 import { calculateAverageOdds } from '../odds/normalizeOdds';
 

@@ -34,7 +34,7 @@ export default function Home() {
             <p className="text-xs text-zinc-500 uppercase tracking-widest mt-1">Leagues</p>
           </div>
           <div>
-            <p className="text-2xl font-bold">65%</p>
+            <p className="text-2xl font-bold">70%</p>
             <p className="text-xs text-zinc-500 uppercase tracking-widest mt-1">Threshold</p>
           </div>
           <div>

@@ -14,8 +14,8 @@ A betting predictions engine that analyzes football matches using Poisson and El
 
 ## User Preferences
 - No UI, no LLM, no bankroll/billing.
-- Strict 65% threshold.
-- 15-minute execution interval.
+- Strict 70% threshold.
+- Engine runs 4 times daily at 00:00, 06:00, 12:00, 18:00 UTC.
 - Dashboard shows games starting in the next 72 hours (0-72h window).
 - Engine prioritizes fixtures that have not yet started and processes up to 100 fixtures per cycle.
 

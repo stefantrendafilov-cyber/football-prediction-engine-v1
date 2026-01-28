@@ -1,15 +1,21 @@
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 import EngineMonitor from '@/components/EngineMonitor';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
+    const supabase = await createClient();
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      redirect('/login');
+    }
+
     const now = new Date();
-    // Buffer: Show games that started up to 2 hours ago
     const bufferNow = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
     const seventyTwoHoursFromNow = new Date(now.getTime() + 72 * 60 * 60 * 1000).toISOString();
 
-    // 1. Fetch latest cycle
     const { data: latestCycle } = await supabase
       .from('engine_cycles')
       .select('*')
@@ -17,7 +23,6 @@ export default async function DashboardPage() {
       .limit(1)
       .single();
 
-    // 2. Fetch predictions
     const { data: rawPredictions, error } = await supabase
       .from('predictions')
       .select(`
@@ -30,7 +35,7 @@ export default async function DashboardPage() {
         )
       `)
       .eq('decision', 'PUBLISH')
-      .gte('model_probability', 0.65)
+      .gte('model_probability', 0.70)
       .gte('fixtures.kickoff_at', bufferNow)
       .lte('fixtures.kickoff_at', seventyTwoHoursFromNow)
       .order('kickoff_at', { foreignTable: 'fixtures', ascending: true })

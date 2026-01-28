@@ -59,7 +59,7 @@ export default function EngineMonitor({ initialPredictions, initialLatestCycle }
         )
       `)
       .eq('decision', 'PUBLISH')
-      .gte('model_probability', 0.65)
+      .gte('model_probability', 0.70)
       .gte('fixtures.kickoff_at', bufferNow)
       .lte('fixtures.kickoff_at', seventyTwoHoursFromNow)
       .order('kickoff_at', { foreignTable: 'fixtures', ascending: true });

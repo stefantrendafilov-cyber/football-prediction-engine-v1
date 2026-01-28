@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runPredictionEngine } from '@/lib/engine';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
