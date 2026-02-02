@@ -17,7 +17,7 @@ A betting predictions engine that analyzes football matches using Poisson and El
 - Strict 70% threshold.
 - Engine runs 4 times daily at 00:00, 06:00, 12:00, 18:00 UTC.
 - Dashboard shows games starting in the next 72 hours (0-72h window).
-- Engine prioritizes fixtures that have not yet started and processes up to 100 fixtures per cycle.
+- Engine prioritizes fixtures that have not yet started and processes up to 150 fixtures per cycle.
 
 ## Project Guidelines
 - Idempotent execution.
@@ -31,4 +31,5 @@ A betting predictions engine that analyzes football matches using Poisson and El
 - Average odds from last 24h using SportMonks pre-match odds.
 - SportMonks v3: Use `fixtures/between/{start}/{end}/{team_id}` for team history.
 - SportMonks v3 Odds: Use `odds/pre-match/fixtures/{fixture_id}` with `include=market`.
+- SportMonks v3 Pagination: API has a hard limit of 50 items per page. The engine implements automatic pagination to fetch all fixtures (up to 150) across multiple pages.
 - Direct ID matching for odds (no fuzzy matching needed as everything comes from SportMonks).

@@ -52,8 +52,8 @@ export async function runPredictionEngine(cycleId?: string) {
         `)
         .eq('status', 'scheduled')
         .gte('kickoff_at', bufferNow.toISOString())
-        .lte('kickoff_at', seventyTwoHoursFromNow.toISOString())
-        .limit(100);
+          .lte('kickoff_at', seventyTwoHoursFromNow.toISOString())
+          .limit(150);
 
       if (localFixtures && localFixtures.length > 0) {
         // Map local fixtures to SM format for the loop
@@ -70,10 +70,10 @@ export async function runPredictionEngine(cycleId?: string) {
       }
     }
 
-    diagnostics.fixtures_found = fixturesToProcess.length;
-    
-    // Limit to 100 fixtures per run to prevent timeouts
-    fixturesToProcess = fixturesToProcess.slice(0, 100);
+      diagnostics.fixtures_found = fixturesToProcess.length;
+      
+      // Limit to 150 fixtures per run to prevent timeouts
+      fixturesToProcess = fixturesToProcess.slice(0, 150);
 
     if (cycleId) {
       await supabase

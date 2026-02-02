@@ -48,18 +48,18 @@ const navItems = [
     icon: LayoutDashboard,
     enabled: true,
   },
-  {
-    title: "My Bets",
-    href: "/dashboard/bets",
-    icon: Receipt,
-    enabled: false,
-  },
-  {
-    title: "Bankroll",
-    href: "/dashboard/bankroll",
-    icon: Wallet,
-    enabled: false,
-  },
+    {
+      title: "My Bets",
+      href: "/dashboard/bets",
+      icon: Receipt,
+      enabled: true,
+    },
+    {
+      title: "Bankroll",
+      href: "/dashboard/bankroll",
+      icon: Wallet,
+      enabled: true,
+    },
 ]
 
 function CollapseButton() {

@@ -1,5 +1,7 @@
 import { supabase } from '@/lib/supabase-admin';
 import { getFixturesByIds } from '@/lib/clients/sportmonks';
+import { BettingService } from '@/lib/betting/service';
+import { BetResult } from '@/lib/betting/types';
 
 interface SyncResult {
   fixturesUpdated: number;
@@ -10,12 +12,14 @@ interface SyncResult {
 function extractScores(fixture: any): { home: number | null; away: number | null } {
   const scores = fixture.scores || [];
   
+  // Try to find TOTAL or CURRENT score, fallback to any available score
   const homeScore = scores.find(
-    (s: any) => s.score?.participant === 'home' && s.description === 'CURRENT'
-  );
+    (s: any) => s.score?.participant === 'home' && (s.description === 'TOTAL' || s.description === 'CURRENT')
+  ) || scores.find((s: any) => s.score?.participant === 'home');
+
   const awayScore = scores.find(
-    (s: any) => s.score?.participant === 'away' && s.description === 'CURRENT'
-  );
+    (s: any) => s.score?.participant === 'away' && (s.description === 'TOTAL' || s.description === 'CURRENT')
+  ) || scores.find((s: any) => s.score?.participant === 'away');
 
   return {
     home: homeScore?.score?.goals ?? null,
@@ -24,8 +28,10 @@ function extractScores(fixture: any): { home: number | null; away: number | null
 }
 
 function isFinishedState(fixture: any): boolean {
+  // SportMonks v3 finished states: 5 (Ended), 7 (AET), 8 (Penalties)
   const finishedStates = [5, 7, 8];
-  return finishedStates.includes(fixture.state_id);
+  const stateId = fixture.state_id || fixture.state?.id;
+  return finishedStates.includes(stateId);
 }
 
 function settlePrediction(
@@ -71,126 +77,114 @@ export async function syncResults(): Promise<SyncResult> {
 
   const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
-  const { data: unsettledPredictions, error: fetchError } = await supabase
+  // 1. Fetch unsettled predictions that are PUBLISH
+  const { data: publishPredictions, error: fetchError } = await supabase
     .from('predictions')
     .select(`
-      id,
-      fixture_id,
-      market,
-      selection,
-      line,
-      fixtures!inner (
-        id,
-        kickoff_at,
-        status,
-        home_score,
-        away_score
-      )
+      id, fixture_id, market, selection, line,
+      fixtures!inner (id, kickoff_at, status, home_score, away_score)
     `)
     .eq('decision', 'PUBLISH')
     .is('outcome', null)
     .lt('fixtures.kickoff_at', twoHoursAgo);
 
-  if (fetchError) {
-    result.errors.push(`Failed to fetch predictions: ${fetchError.message}`);
+  // 2. Fetch predictions that have OPEN bets (regardless of decision or time)
+  const { data: openBetPredictions, error: betFetchError } = await supabase
+    .from('user_bets')
+    .select(`
+      prediction_id,
+      predictions!inner (
+        id, fixture_id, market, selection, line, outcome,
+        fixtures!inner (id, kickoff_at, status, home_score, away_score)
+      )
+    `)
+    .eq('status', 'OPEN');
+
+  const allPredictionsToProcess = new Map<string, any>();
+
+  if (publishPredictions) {
+    for (const p of publishPredictions) allPredictionsToProcess.set(p.id, p);
+  }
+
+  if (openBetPredictions) {
+    for (const obp of openBetPredictions) {
+      const p = obp.predictions as any;
+      if (p && !p.outcome) {
+        allPredictionsToProcess.set(p.id, p);
+      }
+    }
+  }
+
+  if (allPredictionsToProcess.size === 0) {
+    console.log('No unsettled predictions or predictions with open bets found');
     return result;
   }
 
-  if (!unsettledPredictions || unsettledPredictions.length === 0) {
-    console.log('No unsettled predictions found');
-    return result;
-  }
+  const predictions = Array.from(allPredictionsToProcess.values());
+  const fixtureIds = [...new Set(predictions.map((p: any) => p.fixture_id))] as number[];
 
-  console.log(`Found ${unsettledPredictions.length} unsettled predictions to process`);
+  console.log(`Processing ${predictions.length} predictions across ${fixtureIds.length} fixtures`);
 
-  const fixtureIds = [...new Set(unsettledPredictions.map((p: any) => p.fixture_id))] as number[];
-  console.log(`Fetching results for ${fixtureIds.length} fixtures from SportMonks`);
-
+  // Fetch SportMonks data
   let apiFixtures: any[] = [];
   const BATCH_SIZE = 50;
-  
   for (let i = 0; i < fixtureIds.length; i += BATCH_SIZE) {
     const batch = fixtureIds.slice(i, i + BATCH_SIZE);
     try {
       const batchResults = await getFixturesByIds(batch);
       apiFixtures.push(...batchResults);
     } catch (err: any) {
-      result.errors.push(`SportMonks API error (batch ${i / BATCH_SIZE + 1}): ${err.message}`);
+      result.errors.push(`SportMonks API error: ${err.message}`);
     }
   }
 
   const fixtureMap = new Map<number, any>();
   for (const f of apiFixtures) {
     fixtureMap.set(f.id, f);
+    if (isFinishedState(f)) {
+      const { home, away } = extractScores(f);
+      if (home !== null && away !== null) {
+        await supabase.from('fixtures').update({ home_score: home, away_score: away, status: 'finished' }).eq('id', f.id);
+        result.fixturesUpdated++;
+      }
+    }
   }
 
-  for (const apiFixture of apiFixtures) {
-    if (!isFinishedState(apiFixture)) {
-      console.log(`Fixture ${apiFixture.id} not finished (state_id: ${apiFixture.state_id})`);
-      continue;
-    }
-
-    const { home, away } = extractScores(apiFixture);
-    if (home === null || away === null) {
-      console.log(`Fixture ${apiFixture.id} missing scores`);
-      continue;
-    }
-
-    const { error: updateError } = await supabase
-      .from('fixtures')
-      .update({
-        home_score: home,
-        away_score: away,
-        status: 'finished',
-      })
-      .eq('id', apiFixture.id);
-
-    if (updateError) {
-      result.errors.push(`Failed to update fixture ${apiFixture.id}: ${updateError.message}`);
-      continue;
-    }
-
-    result.fixturesUpdated++;
-  }
-
-  for (const prediction of unsettledPredictions) {
+  for (const prediction of predictions) {
     const apiFixture = fixtureMap.get(prediction.fixture_id);
-    
-    if (!apiFixture || !isFinishedState(apiFixture)) {
-      continue;
-    }
+    if (!apiFixture || !isFinishedState(apiFixture)) continue;
 
     const { home, away } = extractScores(apiFixture);
-    if (home === null || away === null) {
-      continue;
+    if (home === null || away === null) continue;
+
+    const outcome = settlePrediction(prediction.market, prediction.selection, prediction.line, home, away);
+    
+    await supabase.from('predictions').update({ outcome, settled_at: new Date().toISOString() }).eq('id', prediction.id);
+
+    // Settle associated bets
+    const { data: openBets } = await supabase.from('user_bets').select('id').eq('prediction_id', prediction.id).eq('status', 'OPEN');
+    if (openBets) {
+      for (const bet of openBets) {
+        const betResult: BetResult = outcome === 'won' ? 'WIN' : outcome === 'lost' ? 'LOSS' : 'VOID';
+        try {
+          await BettingService.settleBet(bet.id, betResult, supabase);
+          console.log(`Settled bet ${bet.id} as ${betResult}`);
+        } catch (err: any) {
+          result.errors.push(`Failed to settle bet ${bet.id}: ${err.message}`);
+        }
+      }
     }
-
-    const outcome = settlePrediction(
-      prediction.market,
-      prediction.selection,
-      prediction.line,
-      home,
-      away
-    );
-
-    const { error: settleError } = await supabase
-      .from('predictions')
-      .update({
-        outcome,
-        settled_at: new Date().toISOString(),
-      })
-      .eq('id', prediction.id);
-
-    if (settleError) {
-      result.errors.push(`Failed to settle prediction ${prediction.id}: ${settleError.message}`);
-      continue;
-    }
-
-    console.log(
-      `Settled prediction ${prediction.id}: ${prediction.market} ${prediction.selection} ` +
-      `(line: ${prediction.line}) => ${outcome} (Score: ${home}-${away})`
-    );
     result.predictionsSettled++;
+  }
+
+  // Final catch-all for stuck bets (prediction settled but bet open)
+  const { data: stuckBets } = await supabase.from('user_bets').select('id, predictions!inner(outcome)').eq('status', 'OPEN').not('predictions.outcome', 'is', null);
+  if (stuckBets) {
+    for (const bet of stuckBets) {
+      const outcome = (bet.predictions as any)?.outcome;
+      const betResult: BetResult = outcome === 'won' ? 'WIN' : outcome === 'lost' ? 'LOSS' : 'VOID';
+      await BettingService.settleBet(bet.id, betResult, supabase);
+    }
   }
 
   return result;

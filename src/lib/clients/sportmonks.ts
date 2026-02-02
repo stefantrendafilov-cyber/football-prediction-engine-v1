@@ -32,12 +32,27 @@ export async function getUpcomingFixtures() {
   const start = now.toISOString().split('T')[0];
   const end = threeDaysLater.toISOString().split('T')[0];
 
-  const data = await fetchSportMonks(`fixtures/between/${start}/${end}`, {
-    include: 'participants;league;scores',
-    filters: `fixtureLeagues:${EUROPEAN_LEAGUE_IDS.join(',')};fixtureStates:1`,
-  });
+  let allFixtures: any[] = [];
+  let page = 1;
+  let hasMore = true;
 
-  return data.data || [];
+  while (hasMore && allFixtures.length < 150) {
+    const data = await fetchSportMonks(`fixtures/between/${start}/${end}`, {
+      include: 'participants;league;scores',
+      filters: `fixtureLeagues:${EUROPEAN_LEAGUE_IDS.join(',')};fixtureStates:1`,
+      per_page: '50',
+      page: page.toString()
+    });
+
+    if (data.data) {
+      allFixtures = [...allFixtures, ...data.data];
+    }
+
+    hasMore = data.pagination?.has_more === true;
+    page++;
+  }
+
+  return allFixtures;
 }
 
 export async function getTeamHistory(teamId: number) {

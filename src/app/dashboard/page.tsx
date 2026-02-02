@@ -39,7 +39,7 @@ export default async function DashboardPage() {
       .gte('fixtures.kickoff_at', bufferNow)
       .lte('fixtures.kickoff_at', seventyTwoHoursFromNow)
       .order('kickoff_at', { foreignTable: 'fixtures', ascending: true })
-      .limit(100);
+      .limit(200);
 
     if (error) {
       console.error('Dashboard Query Error:', error);
