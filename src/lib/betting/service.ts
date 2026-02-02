@@ -3,13 +3,11 @@ import {
   Bankroll, 
   BetCandidate, 
   PlacedBet, 
-  KellyResult, 
-  DEFAULT_KELLY_CONFIG,
+  FixedStakeResult,
   BetResult
 } from './types';
-import { computeStakeDecision } from './kelly';
+import { calculateFixedStake } from './fixed-stake';
 
-// Force reload: 2026-01-30
 export class BettingService {
   private static async getUserId(supabaseClient?: any) {
     const supabase = supabaseClient || await createClient();
@@ -20,10 +18,6 @@ export class BettingService {
 
   static async getOrCreateBankroll(supabaseClient?: any): Promise<Bankroll> {
     const supabase = supabaseClient || await createClient();
-    
-    // If no client provided, we need to get user ID from session
-    // If admin client is provided, this might fail if we don't have a userId
-    // But for automated settlement we don't call getOrCreateBankroll, we fetch existing ones
     const userId = await this.getUserId(supabase);
 
     const { data: bankroll, error } = await supabase
@@ -64,21 +58,120 @@ export class BettingService {
     return this.mapBankroll(newBankroll);
   }
 
-  static async getStakeRecommendation(candidate: BetCandidate, supabaseClient?: any): Promise<KellyResult> {
-    const bankroll = await this.getOrCreateBankroll(supabaseClient);
-    const decision = computeStakeDecision(candidate, bankroll, DEFAULT_KELLY_CONFIG);
-    return decision.kellyResult;
-  }
-
-  static async placeBet(candidate: BetCandidate, supabaseClient?: any): Promise<PlacedBet> {
+  static async updateBankroll(amount: number, supabaseClient?: any): Promise<Bankroll> {
     const supabase = supabaseClient || await createClient();
     const userId = await this.getUserId(supabase);
     const bankroll = await this.getOrCreateBankroll(supabase);
-    const decision = computeStakeDecision(candidate, bankroll, DEFAULT_KELLY_CONFIG);
-    const kelly = decision.kellyResult;
 
-    if (kelly.finalStakeAmount <= 0) {
-      throw new Error('Stake amount too low or negative expected value');
+    if (amount <= 0) throw new Error('Bankroll amount must be greater than zero');
+
+    const { data: updated, error } = await supabase
+      .from('user_bankrolls')
+      .update({
+        initial_bankroll: amount,
+        current_bankroll: amount,
+        peak_bankroll: amount,
+        open_exposure: 0,
+        consecutive_losses: 0,
+        last_n_results: [],
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', bankroll.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return this.mapBankroll(updated);
+  }
+
+  static async getAnalytics(supabaseClient?: any) {
+    const supabase = supabaseClient || await createClient();
+    const userId = await this.getUserId(supabase);
+
+    const { data: bets, error } = await supabase
+      .from('user_bets')
+      .select('*')
+      .eq('user_id', userId)
+      .order('settled_at', { ascending: true });
+
+    if (error) throw error;
+
+    const settledBets = (bets || []).filter(b => b.status !== 'OPEN');
+    const totalStake = settledBets.reduce((sum, b) => sum + Number(b.stake), 0);
+    const totalPnl = settledBets.reduce((sum, b) => sum + (Number(b.pnl) || 0), 0);
+    const wins = settledBets.filter(b => b.status === 'WON').length;
+    const losses = settledBets.filter(b => b.status === 'LOST').length;
+    const voids = settledBets.filter(b => b.status === 'VOID' || b.status === 'PUSH').length;
+    const totalSettled = wins + losses;
+
+    const winRate = totalSettled > 0 ? (wins / totalSettled) * 100 : 0;
+    const yield_pct = totalStake > 0 ? (totalPnl / totalStake) * 100 : 0;
+    
+    // Calculate ROI based on initial bankroll
+    const bankroll = await this.getOrCreateBankroll(supabase);
+    const roi = (totalPnl / bankroll.initialBankroll) * 100;
+
+    // Market distribution
+    const markets: Record<string, { pnl: number, wins: number, total: number }> = {};
+    settledBets.forEach(b => {
+      if (!markets[b.market]) markets[b.market] = { pnl: 0, wins: 0, total: 0 };
+      markets[b.market].pnl += (Number(b.pnl) || 0);
+      if (b.status === 'WON') markets[b.market].wins++;
+      if (b.status !== 'VOID' && b.status !== 'PUSH') markets[b.market].total++;
+    });
+
+    return {
+      overview: {
+        totalBets: bets.length,
+        settledBets: settledBets.length,
+        totalStake,
+        totalPnl,
+        winRate,
+        yield: yield_pct,
+        roi,
+        wins,
+        losses,
+        voids
+      },
+      markets,
+      history: settledBets.map(b => ({
+        date: b.settled_at,
+        pnl: b.pnl,
+        accumulatedPnl: 0 // Will be calculated in component
+      }))
+    };
+  }
+
+  static async getStakeRecommendation(candidate: BetCandidate, supabaseClient?: any): Promise<FixedStakeResult> {
+    const bankroll = await this.getOrCreateBankroll(supabaseClient);
+    return calculateFixedStake(
+      bankroll.currentBankroll,
+      bankroll.consecutiveLosses,
+      bankroll.last50Results
+    );
+  }
+
+  static async placeBet(
+    candidate: BetCandidate, 
+    customStake?: number, 
+    customOdds?: number,
+    supabaseClient?: any
+  ): Promise<PlacedBet> {
+    const supabase = supabaseClient || await createClient();
+    const userId = await this.getUserId(supabase);
+    const bankroll = await this.getOrCreateBankroll(supabase);
+    
+    const recommendation = calculateFixedStake(
+      bankroll.currentBankroll,
+      bankroll.consecutiveLosses,
+      bankroll.last50Results
+    );
+
+    const finalStake = customStake ?? recommendation.stake;
+    const finalOdds = customOdds ?? candidate.oddsDecimal;
+
+    if (finalStake <= 0) {
+      throw new Error('Stake amount must be greater than zero');
     }
 
     // 1. Create the bet record
@@ -91,14 +184,14 @@ export class BettingService {
         market: candidate.market,
         selection: candidate.selection,
         line: candidate.line,
-        odds_decimal: candidate.oddsDecimal,
+        odds_decimal: finalOdds,
         model_probability: candidate.modelProbability,
-        stake: kelly.finalStakeAmount,
-        stake_pct: kelly.finalStakePct,
+        stake: finalStake,
+        stake_pct: finalStake / bankroll.currentBankroll,
         currency: bankroll.currency,
         status: 'OPEN',
         locked_at: new Date().toISOString(),
-        kelly_data: kelly
+        kelly_data: recommendation // Keeping column name for now to avoid migration
       })
       .select()
       .single();
@@ -109,8 +202,8 @@ export class BettingService {
     const { error: bankrollError } = await supabase
       .from('user_bankrolls')
       .update({
-        open_exposure: Number(bankroll.openExposure) + kelly.finalStakeAmount,
-        day_risk_used: Number(bankroll.dayRiskUsed) + kelly.finalStakeAmount,
+        open_exposure: Number(bankroll.openExposure) + finalStake,
+        day_risk_used: Number(bankroll.dayRiskUsed) + finalStake,
         updated_at: new Date().toISOString()
       })
       .eq('id', bankroll.id);
@@ -155,7 +248,7 @@ export class BettingService {
       pnl = -bet.stake;
     }
 
-    const newStatus = result === 'WIN' ? 'WON' : result === 'LOSS' ? 'LOST' : 'VOID';
+    const newStatus = result === 'WIN' ? 'WON' : (result === 'LOSS' ? 'LOST' : 'VOID');
     const newBalance = Number(bankroll.currentBankroll) + pnl;
     
     // 3. Update Bankroll
@@ -232,7 +325,7 @@ export class BettingService {
       pnl: data.pnl ? Number(data.pnl) : undefined,
       lockedAt: new Date(data.locked_at),
       settledAt: data.settled_at ? new Date(data.settled_at) : undefined,
-      kellyData: data.kelly_data,
+      recommendationData: data.kelly_data,
       createdAt: new Date(data.created_at),
       fixture: fixtureData ? {
         homeTeam: fixtureData.home_team?.name || 'Unknown',

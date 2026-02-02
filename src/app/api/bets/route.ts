@@ -30,8 +30,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const candidate = await req.json();
-    const bet = await BettingService.placeBet(candidate);
+    const { candidate, customStake, customOdds } = await req.json();
+    const bet = await BettingService.placeBet(candidate, customStake, customOdds);
     return NextResponse.json(bet);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

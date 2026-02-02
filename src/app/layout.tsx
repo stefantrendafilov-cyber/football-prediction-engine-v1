@@ -6,7 +6,7 @@ import Script from "next/script";
 import { Toaster } from 'sonner';
 
 export const metadata: Metadata = {
-  title: "Prophet Engine",
+  title: "Winlytics.AI",
   description: "High-precision football prediction engine",
 };
 

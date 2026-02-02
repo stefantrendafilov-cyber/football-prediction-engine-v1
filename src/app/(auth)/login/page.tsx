@@ -39,7 +39,7 @@ export default function LoginPage() {
       
       <div className="w-full max-w-md px-8">
         <h1 className="text-3xl font-black tracking-tight mb-2 text-center">Welcome back</h1>
-        <p className="text-zinc-500 text-center mb-8">Sign in to Prophet Engine</p>
+          <p className="text-zinc-500 text-center mb-8">Sign in to Winlytics.AI</p>
 
         <form onSubmit={handleLogin} className="space-y-4">
           {error && (

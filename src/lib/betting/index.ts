@@ -1,3 +1,3 @@
 export * from './types';
-export * from './kelly';
+export * from './fixed-stake';
 export * from './service';

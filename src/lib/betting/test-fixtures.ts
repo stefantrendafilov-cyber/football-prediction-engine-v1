@@ -1,4 +1,4 @@
-import { computeStakeDecision } from './kelly';
+import { calculateFixedStake } from './fixed-stake';
 import { Bankroll, BetCandidate } from './types';
 
 const bankroll: Bankroll = {
@@ -24,31 +24,21 @@ const testFixtures: { name: string; fixtureId: number; market: string; selection
   { name: 'Fixture 19425431', fixtureId: 19425431, market: 'BTTS', selection: 'Yes', odds: 2.05, modelProb: 0.70 },
 ];
 
-console.log('=== KELLY STAKE ENGINE TEST (Safe Kelly v1) ===');
+console.log('=== FIXED STAKE ENGINE TEST (Ultra-Robust v1) ===');
 console.log(`Bankroll: €${bankroll.currentBankroll}`);
 console.log('');
 
 for (const fix of testFixtures) {
-  const candidate: BetCandidate = {
-    predictionId: `pred-${fix.fixtureId}`,
-    fixtureId: fix.fixtureId,
-    market: fix.market,
-    selection: fix.selection,
-    oddsDecimal: fix.odds,
-    modelProbability: fix.modelProb,
-  };
-
-  const decision = computeStakeDecision(candidate, bankroll);
-  const k = decision.kellyResult;
+  const recommendation = calculateFixedStake(
+    bankroll.currentBankroll,
+    bankroll.consecutiveLosses,
+    bankroll.last50Results
+  );
 
   console.log(`--- ${fix.name} ---`);
   console.log(`Market: ${fix.market} ${fix.selection} @ ${fix.odds}`);
   console.log(`Model Prob: ${(fix.modelProb * 100).toFixed(1)}%`);
-  console.log(`pUsed (safety-adjusted): ${(k.pUsed * 100).toFixed(2)}%`);
-  console.log(`Raw Kelly: ${(k.rawKelly * 100).toFixed(3)}%`);
-  console.log(`Fractional (20%): ${(k.fractionalKelly * 100).toFixed(3)}%`);
-  console.log(`Multipliers: DD=${k.drawdownMultiplier} LS=${k.lossStreakMultiplier} Form=${k.formMultiplier}`);
-  console.log(`Final Stake: €${decision.stakeAmount} (${(k.finalStakePct * 100).toFixed(2)}%)`);
-  console.log(`Should Bet: ${decision.shouldBet ? 'YES' : 'NO'}`);
+  console.log(`Stake: €${recommendation.stake} (${(recommendation.pct * 100).toFixed(2)}%)`);
+  console.log(`Status: ${recommendation.isReduced ? 'REDUCED' : 'STANDARD'}`);
   console.log('');
 }

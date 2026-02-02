@@ -4,10 +4,11 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
 import {
-  LayoutDashboard,
-  Receipt,
-  Wallet,
-  Shield,
+    LayoutDashboard,
+    Receipt,
+    Wallet,
+    BarChart3,
+    Shield,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -54,13 +55,19 @@ const navItems = [
       icon: Receipt,
       enabled: true,
     },
-    {
-      title: "Bankroll",
-      href: "/dashboard/bankroll",
-      icon: Wallet,
-      enabled: true,
-    },
-]
+      {
+        title: "Bankroll",
+        href: "/dashboard/bankroll",
+        icon: Wallet,
+        enabled: true,
+      },
+      {
+        title: "Analytics",
+        href: "/dashboard/analytics",
+        icon: BarChart3,
+        enabled: true,
+      },
+  ]
 
 function CollapseButton() {
   const { state, toggleSidebar } = useSidebar()
@@ -70,15 +77,17 @@ function CollapseButton() {
     <button
       onClick={toggleSidebar}
       className={cn(
-        "flex items-center justify-center w-full h-10 rounded-lg transition-all",
-        "hover:bg-white/10 text-zinc-400 hover:text-white"
+        "flex items-center justify-center w-full h-8 rounded-md transition-all",
+        "bg-zinc-900/50 border border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-800",
+        "group relative"
       )}
     >
       {isCollapsed ? (
-        <ChevronRight className="size-5" />
+        <ChevronRight className="size-4" />
       ) : (
-        <ChevronLeft className="size-5" />
+        <ChevronLeft className="size-4" />
       )}
+      <span className="sr-only">{isCollapsed ? "Expand" : "Collapse"} sidebar</span>
     </button>
   )
 }
@@ -105,7 +114,7 @@ export function DashboardSidebar({ user, profile }: DashboardSidebarProps) {
           <div className="flex-shrink-0 w-8 h-8">
             <Image
               src="/logo.png"
-              alt="Prophet"
+              alt="Winlytics.AI"
               width={32}
               height={32}
               className="w-8 h-8 object-contain"
@@ -113,7 +122,7 @@ export function DashboardSidebar({ user, profile }: DashboardSidebarProps) {
             />
           </div>
           {!isCollapsed && (
-            <span className="text-lg tracking-tight">Prophet</span>
+            <span className="text-lg tracking-tight">Winlytics.AI</span>
           )}
         </Link>
       </SidebarHeader>
@@ -183,15 +192,20 @@ export function DashboardSidebar({ user, profile }: DashboardSidebarProps) {
       <SidebarFooter className="p-2 space-y-2">
         <SidebarSeparator className="bg-zinc-800/50" />
         
-        <div className={cn(
-          "flex items-center gap-3 px-2 py-2 rounded-lg",
-          isCollapsed ? "justify-center" : ""
-        )}>
+        <Link 
+          href="/dashboard/profile"
+          className={cn(
+            "flex items-center gap-3 px-2 py-2 rounded-lg transition-colors",
+            "hover:bg-white/5",
+            pathname === '/dashboard/profile' ? "bg-white/5" : "",
+            isCollapsed ? "justify-center" : ""
+          )}
+        >
           <div className="flex-shrink-0 w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
             <UserIcon className="size-4 text-zinc-400" />
           </div>
           {!isCollapsed && (
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 text-left">
               <p className="text-sm font-medium text-white truncate">
                 {user.email}
               </p>
@@ -205,21 +219,7 @@ export function DashboardSidebar({ user, profile }: DashboardSidebarProps) {
               </p>
             </div>
           )}
-        </div>
-
-        <form action="/auth/signout" method="POST">
-          <button
-            type="submit"
-            className={cn(
-              "flex items-center gap-2 w-full h-10 rounded-lg transition-all",
-              "hover:bg-red-500/10 text-zinc-400 hover:text-red-400",
-              isCollapsed ? "justify-center px-0" : "px-3"
-            )}
-          >
-            <LogOut className="size-5" />
-            {!isCollapsed && <span className="font-medium">Sign out</span>}
-          </button>
-        </form>
+        </Link>
 
         <CollapseButton />
       </SidebarFooter>

@@ -1,11 +1,4 @@
-export type BetResult = 'WIN' | 'LOSS' | 'VOID';
-
-export interface KellyConfig {
-  maxStakePct: number;
-  kellyFraction: number;
-  maxDailyRiskPct: number;
-  maxOpenExposurePct: number;
-}
+export type BetResult = 'WIN' | 'LOSS' | 'VOID' | 'PUSH';
 
 export interface Bankroll {
   id: string;
@@ -33,15 +26,12 @@ export interface BetCandidate {
   modelProbability: number;
 }
 
-export interface KellyResult {
-  rawKelly: number;
-  fractionalKelly: number;
-  finalStakePct: number;
-  finalStakeAmount: number;
-  pUsed: number;
-  drawdownMultiplier: number;
-  lossStreakMultiplier: number;
-  formMultiplier: number;
+export interface FixedStakeResult {
+  stake: number;
+  pct: number;
+  isReduced: boolean;
+  bankroll: number;
+  consecutiveLosses: number;
 }
 
 export interface PlacedBet {
@@ -61,7 +51,7 @@ export interface PlacedBet {
   pnl?: number;
   lockedAt: Date;
   settledAt?: Date;
-  kellyData?: KellyResult;
+  recommendationData?: FixedStakeResult;
   createdAt: Date;
   fixture?: {
     homeTeam: string;
@@ -69,10 +59,3 @@ export interface PlacedBet {
     startingAt: string;
   };
 }
-
-export const DEFAULT_KELLY_CONFIG: KellyConfig = {
-  maxStakePct: 0.015,
-  kellyFraction: 0.20,
-  maxDailyRiskPct: 0.05,
-  maxOpenExposurePct: 0.08,
-};

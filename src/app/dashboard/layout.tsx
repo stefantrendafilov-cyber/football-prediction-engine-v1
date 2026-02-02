@@ -34,9 +34,9 @@ export default async function DashboardLayout({
         
         <div className="w-full max-w-md px-8 text-center">
           <h1 className="text-3xl font-black tracking-tight mb-2">Trial Expired</h1>
-          <p className="text-zinc-500 mb-8">
-            Your 7-day free trial has ended. Contact an administrator to continue using Prophet Engine.
-          </p>
+            <p className="text-zinc-500 mb-8">
+              Your 7-day free trial has ended. Contact an administrator to continue using Winlytics.AI.
+            </p>
           
           <form action="/auth/signout" method="POST">
             <button
