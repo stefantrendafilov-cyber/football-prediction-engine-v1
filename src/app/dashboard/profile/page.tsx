@@ -21,20 +21,20 @@ export default async function ProfilePage() {
 
   const bankroll = await BettingService.getOrCreateBankroll();
 
-  return (
-    <div className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-4xl mx-auto space-y-8">
-        <div>
-          <h1 className="text-3xl font-black uppercase tracking-tight">Account Settings</h1>
-          <p className="text-zinc-500">Manage your profile, bankroll and subscription.</p>
-        </div>
+    return (
+      <div className="min-h-screen bg-black text-white p-8">
+        <div className="max-w-4xl mx-auto space-y-8">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Account Settings</h1>
+            <p className="text-zinc-500 text-sm">Manage your profile, bankroll and subscription</p>
+          </div>
 
-        <ProfileSettings 
-          user={user} 
-          profile={profile} 
-          initialBankroll={bankroll} 
-        />
+          <ProfileSettings 
+            user={user} 
+            profile={profile} 
+            initialBankroll={bankroll} 
+          />
+        </div>
       </div>
-    </div>
-  );
+    );
 }

@@ -35,7 +35,7 @@ export default function TriggerButton() {
     <button
       onClick={handleTrigger}
       disabled={loading}
-      className={`flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 rounded-lg text-sm font-medium transition-all transform active:scale-95 ${loading ? 'cursor-not-allowed' : ''}`}
+      className={`flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 rounded-lg text-sm font-medium transition-all transform active:scale-95 ${loading ? 'cursor-not-allowed' : 'cursor-pointer'}`}
     >
       <Play className={`w-4 h-4 ${loading ? 'animate-pulse' : ''}`} />
       {loading ? 'Analyzing...' : 'Trigger Engine'}

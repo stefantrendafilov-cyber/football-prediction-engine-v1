@@ -24,7 +24,6 @@ export function getExpectedGoals(
 
 export function calculateProbabilities(lambdaHome: number, lambdaAway: number) {
   const maxGoals = 6;
-  const grid: number[][] = [];
   
   const pHome: number[] = [];
   const pAway: number[] = [];
@@ -60,5 +59,31 @@ export function calculateProbabilities(lambdaHome: number, lambdaAway: number) {
     under15: 1 - pOver15,
     under25: 1 - pOver25,
     under35: 1 - pOver35
+  };
+}
+
+export function calculateProbabilitiesWithPenalty(
+  lambdaHome: number,
+  lambdaAway: number,
+  leagueAvgGoalsPerTeam: number
+) {
+  const base = calculateProbabilities(lambdaHome, lambdaAway);
+  
+  let pBttsYes = base.btts;
+  
+  // Penalty if min lambda < 0.90 (low-scoring team)
+  if (Math.min(lambdaHome, lambdaAway) < 0.90) {
+    pBttsYes *= 0.90;
+  }
+  
+  // Penalty if league average is low (<1.15 goals per team)
+  if (leagueAvgGoalsPerTeam < 1.15) {
+    pBttsYes *= 0.92;
+  }
+  
+  return {
+    ...base,
+    btts_raw: base.btts,
+    btts: pBttsYes,
   };
 }

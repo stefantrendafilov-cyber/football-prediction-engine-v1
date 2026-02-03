@@ -3,25 +3,56 @@ import { getUpcomingFixtures, getTeamHistory, getLeagueAvgGoals } from '../clien
 import { computeOddsAveragesForFixture } from '../jobs/computeOddsAverages';
 import { syncOddsPointsForFixture } from '../odds/syncOdds';
 import { getMatchProbabilities } from '../models/elo';
-import { getExpectedGoals, calculateProbabilities } from '../models/poisson';
+import { getExpectedGoals, calculateProbabilitiesWithPenalty } from '../models/poisson';
+import { adjustProbability } from '../model/probAdjust';
 import { ENGINE_RULES, OU_LINES } from '../constants/markets';
 
-// Constants
-const MIN_PUBLISH_ODDS = 1.5;
+interface Candidate {
+  fixture_id: number;
+  kickoff_utc: string;
+  market: string;
+  line: number | null;
+  selection: string;
+  model_prob_raw: number;
+  model_prob_final: number;
+  avg_odds: number;
+  implied_prob: number;
+  edge: number;
+  ev: number;
+}
+
+interface Diagnostics {
+  fixtures_found: number;
+  fixtures_processed: number;
+  eligible_candidates: number;
+  predictions_published: number;
+  predictions_blocked: number;
+  blocked_low_prob: number;
+  blocked_low_edge: number;
+  blocked_low_odds: number;
+  blocked_daily_limit: number;
+}
 
 export async function runPredictionEngine(cycleId?: string) {
   const startTime = new Date();
   console.log(`--- ENGINE RUN START: ${startTime.toISOString()} (Cycle: ${cycleId}) ---`);
 
-  const diagnostics = {
+  const diagnostics: Diagnostics = {
     fixtures_found: 0,
     fixtures_processed: 0,
+    eligible_candidates: 0,
     predictions_published: 0,
     predictions_blocked: 0,
+    blocked_low_prob: 0,
+    blocked_low_edge: 0,
+    blocked_low_odds: 0,
+    blocked_daily_limit: 0,
   };
 
+  const allPublishCandidates: Candidate[] = [];
+  const allBlockedRows: any[] = [];
+
   try {
-    // 1. Get upcoming fixtures from SportMonks
     let smFixtures = [];
     try {
       smFixtures = await getUpcomingFixtures();
@@ -30,18 +61,15 @@ export async function runPredictionEngine(cycleId?: string) {
     }
 
     const now = new Date();
-    // Use a 2-hour buffer to catch games that just started
     const bufferNow = new Date(now.getTime() - 2 * 60 * 60 * 1000);
     const seventyTwoHoursFromNow = new Date(now.getTime() + 72 * 60 * 60 * 1000);
     
-    // Filter SM fixtures
     let fixturesToProcess = smFixtures
       .filter((f: any) => {
         const kickoff = new Date(f.starting_at);
         return kickoff >= bufferNow && kickoff <= seventyTwoHoursFromNow;
       });
 
-    // 2. FALLBACK: If SportMonks returned nothing, fetch from LOCAL DB
     if (fixturesToProcess.length === 0) {
       console.log('SportMonks returned 0 upcoming fixtures. Falling back to local database...');
       const { data: localFixtures } = await supabase
@@ -56,7 +84,6 @@ export async function runPredictionEngine(cycleId?: string) {
           .limit(150);
 
       if (localFixtures && localFixtures.length > 0) {
-        // Map local fixtures to SM format for the loop
         fixturesToProcess = localFixtures.map(f => ({
           id: f.id,
           league_id: f.league_id,
@@ -71,8 +98,6 @@ export async function runPredictionEngine(cycleId?: string) {
     }
 
       diagnostics.fixtures_found = fixturesToProcess.length;
-      
-      // Limit to 150 fixtures per run to prevent timeouts
       fixturesToProcess = fixturesToProcess.slice(0, 150);
 
     if (cycleId) {
@@ -90,6 +115,7 @@ export async function runPredictionEngine(cycleId?: string) {
       try {
         const fixtureId = fixture.id;
         const leagueId = fixture.league_id;
+        const kickoffUtc = fixture.starting_at;
         const homeTeam = fixture.participants?.find((p: any) => p.meta?.location === 'home' || p.id === fixture.home_team_id);
         const awayTeam = fixture.participants?.find((p: any) => p.meta?.location === 'away' || p.id === fixture.away_team_id);
 
@@ -100,7 +126,6 @@ export async function runPredictionEngine(cycleId?: string) {
 
         diagnostics.fixtures_processed++;
 
-        // Upsert Teams & Fixture (ensure we have them in DB)
         if (homeTeam.name !== 'Home Team') {
             await supabase.from('teams').upsert([{ id: homeTeam.id, name: homeTeam.name }, { id: awayTeam.id, name: awayTeam.name }], { onConflict: 'id' });
         }
@@ -114,11 +139,10 @@ export async function runPredictionEngine(cycleId?: string) {
           league_id: leagueId,
           home_team_id: homeTeam.id,
           away_team_id: awayTeam.id,
-          kickoff_at: fixture.starting_at,
+          kickoff_at: kickoffUtc,
           status: 'scheduled'
         }, { onConflict: 'id' });
 
-        // History
         const [homeHistory, awayHistory] = await Promise.all([
           getTeamHistory(homeTeam.id),
           getTeamHistory(awayTeam.id)
@@ -132,26 +156,28 @@ export async function runPredictionEngine(cycleId?: string) {
             .eq('decision', 'PUBLISH');
             
           await supabase.from('predictions').insert({
-            fixture_id: fixtureId,
-            market: 'ALL',
-            line: null,
-            selection: 'N/A',
-            model_probability: 0,
-            avg_odds: 0,
-            implied_probability: 0,
-            decision: 'BLOCK',
-            reason: 'INSUFFICIENT_HISTORY'
-          });
+              fixture_id: fixtureId,
+              market: 'ALL',
+              line: null,
+              selection: 'N/A',
+              model_probability: 0,
+              model_prob_raw: 0,
+              avg_odds: 0,
+              implied_probability: 0,
+              decision: 'BLOCK',
+              reason: 'INSUFFICIENT_HISTORY',
+              cycle_id: cycleId || null
+            });
           diagnostics.predictions_blocked++;
           continue;
         }
 
-        // Odds Ingestion
         await syncOddsPointsForFixture(fixture);
         await computeOddsAveragesForFixture(fixtureId);
 
-        // Models
         const leagueAvg = await getLeagueAvgGoals(leagueId);
+        const leagueAvgPerTeam = leagueAvg / 2;
+        
         const getStats = (hist: any[], tId: number) => {
           const recent = hist.slice(0, 10);
           let s = 0, c = 0;
@@ -177,7 +203,7 @@ export async function runPredictionEngine(cycleId?: string) {
           hStats.conceded / (leagueAvg / 2 || 1)
         );
 
-        const poisson = calculateProbabilities(lambdaHome, lambdaAway);
+        const poisson = calculateProbabilitiesWithPenalty(lambdaHome, lambdaAway, leagueAvgPerTeam);
         
         const getElo = (hist: any[], tId: number) => {
           let elo = 1500;
@@ -194,23 +220,22 @@ export async function runPredictionEngine(cycleId?: string) {
         };
         const eloProbs = getMatchProbabilities(getElo(homeHistory, homeTeam.id), getElo(awayHistory, awayTeam.id), 0.25);
 
-        const evaluations: any[] = [
-          { m: "1X2", l: null, s: "HOME", p: eloProbs.home },
-          { m: "1X2", l: null, s: "DRAW", p: eloProbs.draw },
-          { m: "1X2", l: null, s: "AWAY", p: eloProbs.away },
-          { m: "BTTS", l: null, s: "YES", p: poisson.btts },
-          { m: "BTTS", l: null, s: "NO", p: 1 - poisson.btts },
+        const rawEvaluations: { m: string; l: number | null; s: string; pRaw: number }[] = [
+          { m: "1X2", l: null, s: "HOME", pRaw: eloProbs.home },
+          { m: "1X2", l: null, s: "DRAW", pRaw: eloProbs.draw },
+          { m: "1X2", l: null, s: "AWAY", pRaw: eloProbs.away },
+          { m: "BTTS", l: null, s: "YES", pRaw: poisson.btts },
+          { m: "BTTS", l: null, s: "NO", pRaw: 1 - poisson.btts },
         ];
         for (const line of OU_LINES) {
           const probOver = line === 1.5 ? poisson.over15 : (line === 2.5 ? poisson.over25 : poisson.over35);
-          evaluations.push({ m: "OU", l: line, s: "OVER", p: probOver });
-          evaluations.push({ m: "OU", l: line, s: "UNDER", p: 1 - probOver });
+          rawEvaluations.push({ m: "OU", l: line, s: "OVER", pRaw: probOver });
+          rawEvaluations.push({ m: "OU", l: line, s: "UNDER", pRaw: 1 - probOver });
         }
 
-        const eligibleCandidates: any[] = [];
-        const evaluatedRows: any[] = [];
+        const fixtureEligibleCandidates: Candidate[] = [];
 
-        for (const e of evaluations) {
+        for (const e of rawEvaluations) {
           let query = supabase.from('odds_averages')
             .select('avg_odds, source, computed_at_utc')
             .eq('fixture_id', fixtureId)
@@ -229,61 +254,167 @@ export async function runPredictionEngine(cycleId?: string) {
           })[0];
 
           const avgOdds = bestRow?.avg_odds || 0;
-          let reason: string | null = null;
-          if (avgOdds <= 0) reason = 'MISSING_ODDS';
-          else if (avgOdds < MIN_PUBLISH_ODDS) reason = 'LOW_ODDS';
-          else if (e.p < ENGINE_RULES.PROB_THRESHOLD) reason = 'LOW_PROB';
+          const impliedProb = avgOdds > 0 ? 1 / avgOdds : 0;
+          
+          const probFinal = avgOdds > 0 
+            ? adjustProbability(e.pRaw, impliedProb, e.m)
+            : e.pRaw;
+          
+          const edge = probFinal - impliedProb;
+          const ev = probFinal * avgOdds - 1;
 
-          if (reason) {
-            evaluatedRows.push({
-              fixture_id: fixtureId, market: e.m, line: e.l, selection: e.s,
-              model_probability: e.p, avg_odds: avgOdds, implied_probability: avgOdds > 0 ? 1 / avgOdds : 0,
-              decision: 'BLOCK', reason: reason
-            });
-          } else {
-            eligibleCandidates.push({ ...e, avgOdds });
+          let blockReason: string | null = null;
+          if (avgOdds <= 0) {
+            blockReason = 'MISSING_ODDS';
+          } else if (avgOdds < ENGINE_RULES.MIN_PUBLISH_ODDS) {
+            blockReason = 'LOW_ODDS';
+            diagnostics.blocked_low_odds++;
+          } else if (probFinal < ENGINE_RULES.PROB_THRESHOLD) {
+            blockReason = 'LOW_PROB';
+            diagnostics.blocked_low_prob++;
+          } else if (edge < ENGINE_RULES.MIN_EDGE) {
+            blockReason = 'LOW_EDGE';
+            diagnostics.blocked_low_edge++;
           }
-        }
 
-        if (eligibleCandidates.length > 0) {
-          eligibleCandidates.sort((a, b) => {
-            if (Math.abs(b.p - a.p) > 0.001) return b.p - a.p;
-            return b.avgOdds - a.avgOdds;
-          });
-
-          const winner = eligibleCandidates[0];
-          evaluatedRows.push({
-            fixture_id: fixtureId, market: winner.m, line: winner.l, selection: winner.s,
-            model_probability: winner.p, avg_odds: winner.avgOdds, implied_probability: winner.avgOdds > 0 ? 1 / winner.avgOdds : 0,
-            decision: 'PUBLISH', reason: null
-          });
-          diagnostics.predictions_published++;
-
-          for (let i = 1; i < eligibleCandidates.length; i++) {
-            const c = eligibleCandidates[i];
-            evaluatedRows.push({
-              fixture_id: fixtureId, market: c.m, line: c.l, selection: c.s,
-              model_probability: c.p, avg_odds: c.avgOdds, implied_probability: c.avgOdds > 0 ? 1 / c.avgOdds : 0,
-              decision: 'BLOCK', reason: 'BETTER_PICK_EXISTS'
-            });
+            if (blockReason) {
+              allBlockedRows.push({
+                fixture_id: fixtureId,
+                market: e.m,
+                line: e.l,
+                selection: e.s,
+                model_prob_raw: e.pRaw,
+                model_probability: probFinal,
+                avg_odds: avgOdds,
+                implied_probability: impliedProb,
+                decision: 'BLOCK',
+                reason: blockReason,
+                cycle_id: cycleId || null
+              });
             diagnostics.predictions_blocked++;
+          } else {
+            fixtureEligibleCandidates.push({
+              fixture_id: fixtureId,
+              kickoff_utc: kickoffUtc,
+              market: e.m,
+              line: e.l,
+              selection: e.s,
+              model_prob_raw: e.pRaw,
+              model_prob_final: probFinal,
+              avg_odds: avgOdds,
+              implied_prob: impliedProb,
+              edge,
+              ev
+            });
           }
-        } else {
-          diagnostics.predictions_blocked += evaluatedRows.length;
         }
 
-        if (evaluatedRows.length > 0) {
-          await supabase
-            .from('predictions')
-            .update({ decision: 'BLOCK', reason: 'REPLACED_BY_NEW_RUN' })
-            .eq('fixture_id', fixtureId)
-            .eq('decision', 'PUBLISH');
+        if (fixtureEligibleCandidates.length > 0) {
+          fixtureEligibleCandidates.sort((a, b) => {
+            if (Math.abs(b.model_prob_final - a.model_prob_final) > 0.001) {
+              return b.model_prob_final - a.model_prob_final;
+            }
+            return b.avg_odds - a.avg_odds;
+          });
 
-          await supabase.from('predictions').insert(evaluatedRows);
+          const winner = fixtureEligibleCandidates[0];
+          allPublishCandidates.push(winner);
+          diagnostics.eligible_candidates++;
+
+            for (let i = 1; i < fixtureEligibleCandidates.length; i++) {
+              const c = fixtureEligibleCandidates[i];
+              allBlockedRows.push({
+                fixture_id: c.fixture_id,
+                market: c.market,
+                line: c.line,
+                selection: c.selection,
+                model_prob_raw: c.model_prob_raw,
+                model_probability: c.model_prob_final,
+                avg_odds: c.avg_odds,
+                implied_probability: c.implied_prob,
+                decision: 'BLOCK',
+                reason: 'BETTER_PICK_EXISTS',
+                cycle_id: cycleId || null
+              });
+              diagnostics.predictions_blocked++;
+            }
         }
 
       } catch (err) {
         console.error(`Fixture ${fixture.id} error:`, err);
+      }
+    }
+
+    const byDate: Record<string, Candidate[]> = {};
+    for (const c of allPublishCandidates) {
+      const dateKey = c.kickoff_utc.slice(0, 10);
+      if (!byDate[dateKey]) byDate[dateKey] = [];
+      byDate[dateKey].push(c);
+    }
+
+    const finalPublishRows: any[] = [];
+
+    for (const [date, candidates] of Object.entries(byDate)) {
+      candidates.sort((a, b) => b.ev - a.ev);
+      
+      const toPublish = candidates.slice(0, ENGINE_RULES.DAILY_PICK_LIMIT);
+      const toBlock = candidates.slice(ENGINE_RULES.DAILY_PICK_LIMIT);
+
+        for (const c of toPublish) {
+          finalPublishRows.push({
+            fixture_id: c.fixture_id,
+            market: c.market,
+            line: c.line,
+            selection: c.selection,
+            model_prob_raw: c.model_prob_raw,
+            model_probability: c.model_prob_final,
+            avg_odds: c.avg_odds,
+            implied_probability: c.implied_prob,
+            decision: 'PUBLISH',
+            reason: null,
+            cycle_id: cycleId || null
+          });
+          diagnostics.predictions_published++;
+        }
+
+        for (const c of toBlock) {
+          allBlockedRows.push({
+            fixture_id: c.fixture_id,
+            market: c.market,
+            line: c.line,
+            selection: c.selection,
+            model_prob_raw: c.model_prob_raw,
+            model_probability: c.model_prob_final,
+            avg_odds: c.avg_odds,
+            implied_probability: c.implied_prob,
+            decision: 'BLOCK',
+            reason: 'DAILY_LIMIT',
+            cycle_id: cycleId || null
+          });
+          diagnostics.blocked_daily_limit++;
+          diagnostics.predictions_blocked++;
+        }
+    }
+
+    const fixtureIds = Array.from(new Set([
+      ...finalPublishRows.map(r => r.fixture_id),
+      ...allBlockedRows.map(r => r.fixture_id)
+    ]));
+    
+    if (fixtureIds.length > 0) {
+      await supabase
+        .from('predictions')
+        .update({ decision: 'BLOCK', reason: 'REPLACED_BY_NEW_RUN' })
+        .in('fixture_id', fixtureIds)
+        .eq('decision', 'PUBLISH');
+    }
+
+    const allRows = [...finalPublishRows, ...allBlockedRows];
+    if (allRows.length > 0) {
+      const batchSize = 100;
+      for (let i = 0; i < allRows.length; i += batchSize) {
+        const batch = allRows.slice(i, i + batchSize);
+        await supabase.from('predictions').insert(batch);
       }
     }
 
@@ -295,7 +426,12 @@ export async function runPredictionEngine(cycleId?: string) {
           finished_at_utc: new Date().toISOString(),
           fixtures_processed: diagnostics.fixtures_processed,
           predictions_published: diagnostics.predictions_published,
-          predictions_blocked: diagnostics.predictions_blocked
+          predictions_blocked: diagnostics.predictions_blocked,
+          eligible_candidates: diagnostics.eligible_candidates,
+          blocked_low_prob: diagnostics.blocked_low_prob,
+          blocked_low_edge: diagnostics.blocked_low_edge,
+          blocked_low_odds: diagnostics.blocked_low_odds,
+          blocked_daily_limit: diagnostics.blocked_daily_limit
         })
         .eq('id', cycleId);
     }

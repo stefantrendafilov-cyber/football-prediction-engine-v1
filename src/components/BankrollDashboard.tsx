@@ -91,12 +91,8 @@ export default function BankrollDashboard() {
     <div className="space-y-8 p-8 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row items-start justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-black tracking-tight mb-2 uppercase italic">BANKROLL</h1>
-          <p className="text-zinc-500 uppercase tracking-widest text-xs font-bold">Fixed Stake v1 (Ultra-Robust)</p>
-        </div>
-        <div className="flex items-center gap-2 px-4 py-2 bg-zinc-900 rounded-full border border-zinc-800">
-          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-xs font-mono text-zinc-400">ENGINE LIVE</span>
+          <h1 className="text-3xl font-bold tracking-tight mb-1">Bankroll</h1>
+          <p className="text-zinc-500 text-sm">Track your betting balance and stake management</p>
         </div>
       </div>
 
@@ -157,7 +153,7 @@ export default function BankrollDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="md:col-span-2 bg-zinc-950 border-zinc-900 overflow-hidden">
           <CardHeader>
-            <CardTitle className="text-xl font-bold italic uppercase tracking-tight">Recent Bets</CardTitle>
+            <CardTitle className="text-xl font-bold tracking-tight">Recent Bets</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <BetsTable initialBets={bets} limit={10} />
@@ -167,9 +163,9 @@ export default function BankrollDashboard() {
         <div className="space-y-6">
           <Card className="bg-zinc-950 border-zinc-900">
             <CardHeader>
-              <CardTitle className="text-xl font-bold flex items-center gap-2 italic uppercase tracking-tight">
+              <CardTitle className="text-xl font-bold flex items-center gap-2 tracking-tight">
                 <Shield className="text-blue-500" size={20} />
-                System Health
+                Win/Loss Streak
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -210,13 +206,13 @@ export default function BankrollDashboard() {
           <Card className="bg-zinc-950 border-zinc-900 overflow-hidden">
             <div className={`h-1 bg-gradient-to-r ${isReduced ? 'from-red-600 to-orange-600' : 'from-blue-600 to-cyan-600'}`} />
             <CardHeader>
-              <CardTitle className="text-sm font-black uppercase tracking-widest text-zinc-500">System Parameters</CardTitle>
+              <CardTitle className="text-sm font-bold uppercase tracking-widest text-zinc-500">Smart Stake Settings</CardTitle>
             </CardHeader>
             <CardContent className="text-xs space-y-2 font-mono text-zinc-400">
-              <div className="flex justify-between"><span>BASE STAKE</span><span>1.5%</span></div>
-              <div className="flex justify-between"><span>REDUCED STAKE</span><span>0.75%</span></div>
-              <div className="flex justify-between"><span>LOSS TRIGGER</span><span>3 LOSSES</span></div>
-              <div className="flex justify-between"><span>WIN RECOVERY</span><span>2/3 WINS</span></div>
+              <div className="flex justify-between"><span>Standard stake</span><span>1.5%</span></div>
+              <div className="flex justify-between"><span>Reduced stake</span><span>0.75%</span></div>
+              <div className="flex justify-between"><span>Auto-reduce after</span><span>3 losses</span></div>
+              <div className="flex justify-between"><span>Restore after</span><span>2/3 wins</span></div>
             </CardContent>
           </Card>
         </div>

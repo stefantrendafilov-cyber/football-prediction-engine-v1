@@ -131,11 +131,11 @@ export default function LockBetDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-50 max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold uppercase tracking-tight">
-            Lock Bet
+          <DialogTitle className="text-xl font-bold tracking-tight">
+            Confirm Your Bet
           </DialogTitle>
           <DialogDescription className="text-zinc-500">
-            Confirm and lock your bet details.
+            Review and confirm your bet details before locking
           </DialogDescription>
         </DialogHeader>
 
@@ -155,7 +155,7 @@ export default function LockBetDialog({
             <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 space-y-2">
               <div className="flex justify-between items-center text-xs font-bold text-zinc-500 uppercase tracking-widest">
                 <span>Game Details</span>
-                <span className="text-blue-500">{(prediction.model_probability * 100).toFixed(1)}% Prob</span>
+                <span className="text-blue-500">{(prediction.model_probability * 100).toFixed(1)}% Confidence</span>
               </div>
               <div className="font-bold text-sm">
                 {homeTeam} vs {awayTeam}
@@ -169,13 +169,13 @@ export default function LockBetDialog({
             <div className="space-y-4">
               <div className="flex justify-between items-end">
                 <Label htmlFor="stake" className="text-xs font-bold uppercase text-zinc-500">
-                  Stake Recommendation
+                  Suggested Stake
                 </Label>
                 {loading ? (
                   <Loader2 size={12} className="animate-spin text-zinc-500 mb-1" />
                 ) : recommendation ? (
                   <span className={`text-xs font-bold px-2 py-0.5 rounded ${recommendation.isReduced ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}`}>
-                    {recommendation.isReduced ? 'REDUCED MODE (0.75%)' : 'STANDARD (1.5%)'}
+                    {recommendation.isReduced ? 'REDUCED STAKE' : 'STANDARD STAKE'}
                   </span>
                 ) : null}
               </div>
@@ -211,8 +211,7 @@ export default function LockBetDialog({
                 <div className="bg-red-500/10 border border-red-500/20 rounded-md p-3 flex gap-3 items-start">
                   <AlertTriangle size={16} className="text-red-500 mt-0.5 shrink-0" />
                   <p className="text-[10px] text-red-400 leading-relaxed font-medium">
-                    REDUCED MODE ACTIVE: Stake is limited to 0.75% due to 3+ consecutive losses. 
-                    Recovery requires 2 wins in last 3 settled bets.
+                    Stake is temporarily reduced due to recent losses. Recovery requires 2 wins in next 3 settled bets.
                   </p>
                 </div>
               )}
@@ -225,20 +224,20 @@ export default function LockBetDialog({
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="border-zinc-800 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-50 font-bold uppercase tracking-wider text-xs h-11"
+              className="cursor-pointer border-zinc-800 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-50 font-bold uppercase tracking-wider text-xs h-11"
               disabled={locking}
             >
               Cancel
             </Button>
             <Button
               onClick={lockBet}
-              className="bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-wider text-sm h-11 px-8 shadow-[0_0_20px_rgba(37,99,235,0.3)] flex-1 sm:flex-none"
+              className={`bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-wider text-sm h-11 px-8 shadow-[0_0_20px_rgba(37,99,235,0.3)] flex-1 sm:flex-none ${locking || loading ? 'cursor-not-allowed' : 'cursor-pointer'}`}
               disabled={locking || loading}
             >
               {locking ? (
                 <Loader2 size={18} className="animate-spin" />
               ) : (
-                'LOCK BET & SEND TO MY BETS'
+                'LOCK BET'
               )}
             </Button>
           </DialogFooter>

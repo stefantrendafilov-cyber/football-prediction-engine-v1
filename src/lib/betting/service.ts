@@ -58,31 +58,30 @@ export class BettingService {
     return this.mapBankroll(newBankroll);
   }
 
-  static async updateBankroll(amount: number, supabaseClient?: any): Promise<Bankroll> {
-    const supabase = supabaseClient || await createClient();
-    const userId = await this.getUserId(supabase);
-    const bankroll = await this.getOrCreateBankroll(supabase);
-
-    if (amount <= 0) throw new Error('Bankroll amount must be greater than zero');
-
-    const { data: updated, error } = await supabase
-      .from('user_bankrolls')
-      .update({
-        initial_bankroll: amount,
-        current_bankroll: amount,
-        peak_bankroll: amount,
-        open_exposure: 0,
-        consecutive_losses: 0,
-        last_n_results: [],
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', bankroll.id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return this.mapBankroll(updated);
-  }
+    static async updateBankroll(amount: number, supabaseClient?: any): Promise<Bankroll> {
+      const supabase = supabaseClient || await createClient();
+      const userId = await this.getUserId(supabase);
+      const bankroll = await this.getOrCreateBankroll(supabase);
+  
+      if (amount <= 0) throw new Error('Bankroll amount must be greater than zero');
+  
+      // Update bankroll values while PRESERVING exposure and history
+      const { data: updated, error } = await supabase
+        .from('user_bankrolls')
+        .update({
+          initial_bankroll: amount,
+          current_bankroll: amount,
+          peak_bankroll: Math.max(amount, bankroll.peakBankroll),
+          updated_at: new Date().toISOString()
+          // NOTE: open_exposure, consecutive_losses, and last_n_results are intentionally omitted to preserve them
+        })
+        .eq('id', bankroll.id)
+        .select()
+        .single();
+  
+      if (error) throw error;
+      return this.mapBankroll(updated);
+    }
 
   static async getAnalytics(supabaseClient?: any) {
     const supabase = supabaseClient || await createClient();
@@ -144,8 +143,9 @@ export class BettingService {
 
   static async getStakeRecommendation(candidate: BetCandidate, supabaseClient?: any): Promise<FixedStakeResult> {
     const bankroll = await this.getOrCreateBankroll(supabaseClient);
+    const availableBankroll = bankroll.currentBankroll - bankroll.openExposure;
     return calculateFixedStake(
-      bankroll.currentBankroll,
+      availableBankroll,
       bankroll.consecutiveLosses,
       bankroll.last50Results
     );
@@ -161,8 +161,9 @@ export class BettingService {
     const userId = await this.getUserId(supabase);
     const bankroll = await this.getOrCreateBankroll(supabase);
     
+    const availableBankroll = bankroll.currentBankroll - bankroll.openExposure;
     const recommendation = calculateFixedStake(
-      bankroll.currentBankroll,
+      availableBankroll,
       bankroll.consecutiveLosses,
       bankroll.last50Results
     );
@@ -187,7 +188,7 @@ export class BettingService {
         odds_decimal: finalOdds,
         model_probability: candidate.modelProbability,
         stake: finalStake,
-        stake_pct: finalStake / bankroll.currentBankroll,
+        stake_pct: finalStake / availableBankroll,
         currency: bankroll.currency,
         status: 'OPEN',
         locked_at: new Date().toISOString(),

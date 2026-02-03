@@ -35,7 +35,7 @@ export default function Pagination({
           <select
             value={pageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            className="bg-zinc-900 border border-zinc-800 text-zinc-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-1.5 px-3 outline-none"
+            className="cursor-pointer bg-zinc-900 border border-zinc-800 text-zinc-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-1.5 px-3 outline-none"
           >
             {[10, 20, 50].map((size) => (
               <option key={size} value={size}>
@@ -49,7 +49,7 @@ export default function Pagination({
           <button
             onClick={() => onPageChange(1)}
             disabled={currentPage === 1}
-            className="p-2 text-zinc-400 hover:text-white disabled:text-zinc-700 disabled:cursor-not-allowed transition-colors"
+            className={`p-2 text-zinc-400 hover:text-white disabled:text-zinc-700 transition-colors ${currentPage === 1 ? 'disabled:cursor-not-allowed' : 'cursor-pointer'}`}
             title="First Page"
           >
             <ChevronsLeft className="w-4 h-4" />
@@ -57,7 +57,7 @@ export default function Pagination({
           <button
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
-            className="p-2 text-zinc-400 hover:text-white disabled:text-zinc-700 disabled:cursor-not-allowed transition-colors"
+            className={`p-2 text-zinc-400 hover:text-white disabled:text-zinc-700 transition-colors ${currentPage === 1 ? 'disabled:cursor-not-allowed' : 'cursor-pointer'}`}
             title="Previous Page"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -70,7 +70,7 @@ export default function Pagination({
           <button
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage >= totalPages}
-            className="p-2 text-zinc-400 hover:text-white disabled:text-zinc-700 disabled:cursor-not-allowed transition-colors"
+            className={`p-2 text-zinc-400 hover:text-white disabled:text-zinc-700 transition-colors ${currentPage >= totalPages ? 'disabled:cursor-not-allowed' : 'cursor-pointer'}`}
             title="Next Page"
           >
             <ChevronRight className="w-4 h-4" />
@@ -78,7 +78,7 @@ export default function Pagination({
           <button
             onClick={() => onPageChange(totalPages)}
             disabled={currentPage >= totalPages}
-            className="p-2 text-zinc-400 hover:text-white disabled:text-zinc-700 disabled:cursor-not-allowed transition-colors"
+            className={`p-2 text-zinc-400 hover:text-white disabled:text-zinc-700 transition-colors ${currentPage >= totalPages ? 'disabled:cursor-not-allowed' : 'cursor-pointer'}`}
             title="Last Page"
           >
             <ChevronsRight className="w-4 h-4" />

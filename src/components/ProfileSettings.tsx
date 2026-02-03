@@ -54,10 +54,10 @@ export default function ProfileSettings({ user, profile, initialBankroll }: Prof
         <CardHeader className="border-b border-zinc-900 pb-4">
           <div className="flex items-center gap-2 text-zinc-400 mb-1">
             <UserIcon size={14} />
-            <span className="text-[10px] font-bold uppercase tracking-widest">Account Details</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest">Account</span>
           </div>
-          <CardTitle className="text-xl font-bold uppercase">Personal Information</CardTitle>
-          <CardDescription className="text-zinc-500">Your account identity and access levels.</CardDescription>
+          <CardTitle className="text-xl font-bold">Your Information</CardTitle>
+          <CardDescription className="text-zinc-500">Your account details and access</CardDescription>
         </CardHeader>
         <CardContent className="pt-6 space-y-6">
           <div className="space-y-2">

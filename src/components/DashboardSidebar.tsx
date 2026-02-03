@@ -9,6 +9,7 @@ import {
     Wallet,
     BarChart3,
     Shield,
+    History,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -44,30 +45,36 @@ interface DashboardSidebarProps {
 
 const navItems = [
   {
-    title: "Dashboard",
+    title: "Today's Picks",
     href: "/dashboard",
     icon: LayoutDashboard,
     enabled: true,
   },
-    {
-      title: "My Bets",
-      href: "/dashboard/bets",
-      icon: Receipt,
-      enabled: true,
-    },
-      {
-        title: "Bankroll",
-        href: "/dashboard/bankroll",
-        icon: Wallet,
-        enabled: true,
-      },
-      {
-        title: "Analytics",
-        href: "/dashboard/analytics",
-        icon: BarChart3,
-        enabled: true,
-      },
-  ]
+  {
+    title: "Prediction History",
+    href: "/dashboard/history",
+    icon: History,
+    enabled: true,
+  },
+  {
+    title: "My Bets",
+    href: "/dashboard/bets",
+    icon: Receipt,
+    enabled: true,
+  },
+  {
+    title: "Bankroll",
+    href: "/dashboard/bankroll",
+    icon: Wallet,
+    enabled: true,
+  },
+  {
+    title: "Analytics",
+    href: "/dashboard/analytics",
+    icon: BarChart3,
+    enabled: true,
+  },
+]
 
 function CollapseButton() {
   const { state, toggleSidebar } = useSidebar()
@@ -77,7 +84,7 @@ function CollapseButton() {
     <button
       onClick={toggleSidebar}
       className={cn(
-        "flex items-center justify-center w-full h-8 rounded-md transition-all",
+        "cursor-pointer flex items-center justify-center w-full h-8 rounded-md transition-all",
         "bg-zinc-900/50 border border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-800",
         "group relative"
       )}
@@ -138,7 +145,7 @@ export function DashboardSidebar({ user, profile }: DashboardSidebarProps) {
                   isActive={isActive}
                   tooltip={item.title}
                   className={cn(
-                    "h-11 transition-all",
+                    "h-11 transition-all cursor-pointer",
                     isActive
                       ? "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-400"
                       : "text-zinc-400 hover:text-white hover:bg-white/5",
@@ -172,7 +179,7 @@ export function DashboardSidebar({ user, profile }: DashboardSidebarProps) {
                     isActive={pathname === '/dashboard/admin'}
                     tooltip="Admin"
                     className={cn(
-                      "h-11 transition-all",
+                      "h-11 transition-all cursor-pointer",
                       pathname === '/dashboard/admin'
                         ? "bg-amber-500/15 text-amber-400 hover:bg-amber-500/20 hover:text-amber-400"
                         : "text-amber-500 hover:text-amber-400 hover:bg-amber-500/10"

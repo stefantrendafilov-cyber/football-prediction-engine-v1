@@ -38,21 +38,9 @@ export default async function HistoryPage() {
 
   const settledPredictions = predictions || [];
 
-  const stats = {
-    total: settledPredictions.length,
-    won: settledPredictions.filter((p) => p.outcome === 'won').length,
-    lost: settledPredictions.filter((p) => p.outcome === 'lost').length,
-  };
-
-  const winRate = stats.total > 0 ? ((stats.won / (stats.won + stats.lost)) * 100) : 0;
-
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50 p-8">
-      <HistoryClient 
-        initialPredictions={settledPredictions}
-        stats={stats}
-        winRate={winRate}
-      />
+      <HistoryClient initialPredictions={settledPredictions} />
     </div>
   );
 }

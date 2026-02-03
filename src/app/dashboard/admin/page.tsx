@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
-import { Users, Activity, Settings } from "lucide-react"
+import { Users, Activity, Settings, Play, RefreshCw, TrendingUp, TrendingDown, Target, Percent } from "lucide-react"
+import TriggerButton from "@/components/TriggerButton"
+import SyncResultsButton from "@/components/SyncResultsButton"
 
 export default async function AdminPage() {
   const supabase = await createClient()
@@ -25,15 +27,37 @@ export default async function AdminPage() {
     .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
 
+  const { data: latestCycle } = await supabase
+    .from('engine_cycles')
+    .select('*')
+    .order('started_at_utc', { ascending: false })
+    .limit(1)
+    .single()
+
+  const { data: settledPredictions } = await supabase
+    .from('predictions')
+    .select('outcome')
+    .eq('decision', 'PUBLISH')
+    .not('outcome', 'is', null)
+
+  const predictionStats = {
+    total: settledPredictions?.length || 0,
+    won: settledPredictions?.filter((p) => p.outcome === 'won').length || 0,
+    lost: settledPredictions?.filter((p) => p.outcome === 'lost').length || 0,
+  }
+  const winRate = predictionStats.total > 0 
+    ? ((predictionStats.won / (predictionStats.won + predictionStats.lost)) * 100) 
+    : 0
+
   return (
     <div className="flex-1 p-8">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">Admin Panel</h1>
-          <p className="text-zinc-500">Manage users and system settings</p>
+          <p className="text-zinc-500">Manage users and system controls</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
             <div className="flex items-center gap-3 mb-2">
               <Users className="size-5 text-blue-400" />
@@ -55,13 +79,69 @@ export default async function AdminPage() {
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
             <div className="flex items-center gap-3 mb-2">
               <Settings className="size-5 text-amber-400" />
-              <span className="text-sm text-zinc-400">System Status</span>
+              <span className="text-sm text-zinc-400">Engine Status</span>
             </div>
-            <p className="text-lg font-bold text-emerald-400">Operational</p>
+            <p className={`text-lg font-bold ${latestCycle?.status === 'SUCCESS' ? 'text-emerald-400' : latestCycle?.status === 'FAILED' ? 'text-red-400' : 'text-blue-400'}`}>
+              {latestCycle?.status || 'No runs'}
+            </p>
           </div>
-        </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <Play className="size-5 text-blue-400" />
+                <span className="text-sm text-zinc-400">Engine Control</span>
+              </div>
+              <TriggerButton />
+            </div>
+
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <RefreshCw className="size-5 text-emerald-400" />
+                <span className="text-sm text-zinc-400">Results Sync</span>
+              </div>
+            <SyncResultsButton />
+              </div>
+            </div>
+
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden mb-8">
+            <div className="px-6 py-4 border-b border-zinc-800">
+              <h2 className="text-lg font-semibold text-white">Prediction Statistics</h2>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-6">
+              <div className="bg-zinc-800/50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target className="size-4 text-zinc-400" />
+                  <span className="text-xs text-zinc-500 uppercase">Total Settled</span>
+                </div>
+                <p className="text-2xl font-bold text-white">{predictionStats.total}</p>
+              </div>
+              <div className="bg-zinc-800/50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="size-4 text-green-400" />
+                  <span className="text-xs text-zinc-500 uppercase">Won</span>
+                </div>
+                <p className="text-2xl font-bold text-green-400">{predictionStats.won}</p>
+              </div>
+              <div className="bg-zinc-800/50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingDown className="size-4 text-red-400" />
+                  <span className="text-xs text-zinc-500 uppercase">Lost</span>
+                </div>
+                <p className="text-2xl font-bold text-red-400">{predictionStats.lost}</p>
+              </div>
+              <div className="bg-zinc-800/50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Percent className="size-4 text-blue-400" />
+                  <span className="text-xs text-zinc-500 uppercase">Win Rate</span>
+                </div>
+                <p className={`text-2xl font-bold ${winRate >= 50 ? 'text-green-400' : 'text-red-400'}`}>
+                  {winRate.toFixed(1)}%
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
           <div className="px-6 py-4 border-b border-zinc-800">
             <h2 className="text-lg font-semibold text-white">Users</h2>
           </div>

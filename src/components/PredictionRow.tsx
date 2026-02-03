@@ -12,13 +12,13 @@ interface PredictionRowProps {
 function formatTime(dateStr: string | undefined): string {
   if (!dateStr) return 'N/A';
   const d = new Date(dateStr);
-  return d.toISOString().slice(11, 16);
+  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
 function formatDate(dateStr: string | undefined): string {
   if (!dateStr) return '';
   const d = new Date(dateStr);
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 export default function PredictionRow({ prediction, showOutcome = false }: PredictionRowProps) {

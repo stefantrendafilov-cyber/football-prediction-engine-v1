@@ -10,16 +10,16 @@ export default async function BetsPage() {
     redirect('/login');
   }
 
-  return (
-    <div className="flex flex-col min-h-screen bg-black text-white p-8 space-y-8">
-      <div>
-        <h1 className="text-4xl font-black tracking-tight mb-2 uppercase">My Bets</h1>
-        <p className="text-zinc-500 uppercase tracking-widest text-xs font-bold">Comprehensive betting history</p>
-      </div>
+    return (
+      <div className="flex flex-col min-h-screen bg-black text-white p-8 space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight mb-1">My Bets</h1>
+          <p className="text-zinc-500 text-sm">View and track all your placed bets</p>
+        </div>
 
-      <div className="bg-zinc-950 border border-zinc-900 rounded-xl overflow-hidden">
-        <BetsTable />
+        <div className="bg-zinc-950 border border-zinc-900 rounded-xl overflow-hidden">
+          <BetsTable />
+        </div>
       </div>
-    </div>
-  )
+    )
 }

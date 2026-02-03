@@ -13,13 +13,13 @@ interface PredictionCardProps {
 function formatTime(dateStr: string | undefined): string {
   if (!dateStr) return 'N/A';
   const d = new Date(dateStr);
-  return d.toISOString().slice(11, 16);
+  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
 function formatDate(dateStr: string | undefined): string {
   if (!dateStr) return '';
   const d = new Date(dateStr);
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 export default function PredictionCard({ prediction, showOutcome = false }: PredictionCardProps) {
@@ -61,19 +61,13 @@ export default function PredictionCard({ prediction, showOutcome = false }: Pred
           : 'ring-1 ring-green-500/30'
       }`}
     >
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-start mb-2">
-          {showOutcome ? (
-            getOutcomeBadge(prediction.outcome)
-          ) : (
-            <Badge variant="outline" className="text-green-500 border-green-500/50 bg-green-500/10">
-              {prediction.decision}
-            </Badge>
-          )}
-          <span className="text-[10px] text-zinc-500 uppercase font-mono">
-            {showOutcome ? formatDate(prediction.fixtures?.kickoff_at) : formatTime(prediction.created_at)}
-          </span>
-        </div>
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-start mb-2">
+            {showOutcome && getOutcomeBadge(prediction.outcome)}
+            <span className={`text-[10px] text-zinc-500 uppercase font-mono ${!showOutcome ? 'ml-auto' : ''}`}>
+              {showOutcome ? formatDate(prediction.fixtures?.kickoff_at) : formatTime(prediction.fixtures?.kickoff_at)}
+            </span>
+          </div>
         <CardTitle className="text-xl font-black leading-tight text-white tracking-tight">
           {prediction.fixtures?.home_team?.name} <span className="text-zinc-500 font-normal mx-1">vs</span> {prediction.fixtures?.away_team?.name}
         </CardTitle>
@@ -99,21 +93,21 @@ export default function PredictionCard({ prediction, showOutcome = false }: Pred
               <p className="text-xs text-blue-400 font-bold">{prediction.selection}</p>
             </div>
             <div className="text-right">
-              <p className="text-[10px] text-zinc-500 uppercase mb-1 tracking-wider">Model Prob</p>
+              <p className="text-[10px] text-zinc-500 uppercase mb-1 tracking-wider">Confidence</p>
               <p className="text-2xl font-black text-blue-500">{(prediction.model_probability * 100).toFixed(1)}%</p>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-zinc-800 flex justify-between items-center">
-            <div>
-              <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Avg Odds</p>
-              <p className="text-sm font-mono text-zinc-300">{prediction.avg_odds ? prediction.avg_odds.toFixed(2) : 'N/A'}</p>
+            <div className="pt-4 border-t border-zinc-800 flex justify-between items-center">
+              <div>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Odds</p>
+                <p className="text-sm font-mono text-zinc-300">{prediction.avg_odds ? prediction.avg_odds.toFixed(2) : 'N/A'}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Book Prob</p>
+                <p className="text-sm font-mono text-zinc-400">{prediction.avg_odds ? (100 / prediction.avg_odds).toFixed(1) : '0'}%</p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Implied</p>
-              <p className="text-sm font-mono text-zinc-400">{prediction.avg_odds ? (100 / prediction.avg_odds).toFixed(1) : '0'}%</p>
-            </div>
-          </div>
           
           {!showOutcome && (
             <div className="pt-2">

@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
         )
       `)
       .eq('user_id', user.id)
+      .order('settled_at', { ascending: false, nullsFirst: true })
       .order('created_at', { ascending: false });
 
     if (error) throw error;

@@ -16,16 +16,16 @@ export default async function AnalyticsPage() {
   const analytics = await BettingService.getAnalytics();
   const bankroll = await BettingService.getOrCreateBankroll();
 
-  return (
-    <div className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-6xl mx-auto space-y-8">
-        <div>
-          <h1 className="text-3xl font-black uppercase tracking-tight">Performance Analytics</h1>
-          <p className="text-zinc-500">In-depth analysis of your betting strategy and outcomes.</p>
-        </div>
+    return (
+      <div className="min-h-screen bg-black text-white p-8">
+        <div className="max-w-6xl mx-auto space-y-8">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
+            <p className="text-zinc-500 text-sm">Your betting performance and statistics</p>
+          </div>
 
-        <PerformanceAnalytics data={analytics} initialBankroll={bankroll.initialBankroll} />
+          <PerformanceAnalytics data={analytics} initialBankroll={bankroll.initialBankroll} />
+        </div>
       </div>
-    </div>
-  );
+    );
 }

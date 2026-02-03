@@ -53,11 +53,9 @@ export default function PerformanceAnalytics({ data, initialBankroll }: Performa
   const chartData = useMemo(() => {
     let currentAccumulated = 0;
     
-    // We need to calculate cumulative PnL even for items before the cutoff
-    // to get the correct starting point if we're not showing "ALL"
-    const fullHistory = history.map((h: any) => {
+    const fullHistory = history.map((h: any, idx: number) => {
       currentAccumulated += Number(h.pnl);
-      return { ...h, accumulatedPnl: currentAccumulated };
+      return { ...h, accumulatedPnl: currentAccumulated, originalIndex: idx };
     });
 
     const startValue = timeframe === 'ALL' ? 0 : (() => {
@@ -68,7 +66,7 @@ export default function PerformanceAnalytics({ data, initialBankroll }: Performa
       return fullHistory[index - 1].accumulatedPnl;
     })();
 
-    const data = filteredHistory.map((h: any) => {
+    const data = filteredHistory.map((h: any, idx: number) => {
       const hIndex = fullHistory.findIndex((fh: any) => fh.date === h.date);
       const accPnl = fullHistory[hIndex].accumulatedPnl;
       const relativePnl = accPnl - startValue;
@@ -80,15 +78,29 @@ export default function PerformanceAnalytics({ data, initialBankroll }: Performa
         value = initialBankroll + accPnl;
       }
 
+      const d = new Date(h.date);
+      const dateLabel = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      const timeLabel = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+
       return {
-        date: new Date(h.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        date: `${dateLabel} ${timeLabel}`,
         value: Number(value.toFixed(2)),
-        fullDate: new Date(h.date).toLocaleString()
+        fullDate: d.toLocaleString(),
+        profit: Number(accPnl.toFixed(2)),
+        roi: Number(((accPnl / initialBankroll) * 100).toFixed(2)),
+        bankroll: Number((initialBankroll + accPnl).toFixed(2))
       };
     });
 
     const initialPointValue = metric === 'bankroll' ? initialBankroll + startValue : 0;
-    return [{ date: 'Start', value: initialPointValue, fullDate: 'Beginning of period' }, ...data];
+    return [{ 
+      date: 'Start', 
+      value: initialPointValue, 
+      fullDate: 'Beginning of period',
+      profit: startValue,
+      roi: Number(((startValue / initialBankroll) * 100).toFixed(2)),
+      bankroll: initialBankroll + startValue
+    }, ...data];
   }, [filteredHistory, history, metric, timeframe, initialBankroll]);
 
   const formatYAxis = (value: number) => {
@@ -135,13 +147,13 @@ export default function PerformanceAnalytics({ data, initialBankroll }: Performa
         <Card className="lg:col-span-2 bg-zinc-950 border-zinc-900 overflow-hidden">
           <CardHeader className="border-b border-zinc-900 pb-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <CardTitle className="text-xl font-bold uppercase tracking-tight flex items-center gap-2">
-                  <TrendingUp size={18} className="text-blue-500" />
-                  Performance Curve
-                </CardTitle>
-                <CardDescription className="text-zinc-500">Track your progress and growth metrics.</CardDescription>
-              </div>
+                <div>
+                  <CardTitle className="text-xl font-bold tracking-tight flex items-center gap-2">
+                    <TrendingUp size={18} className="text-blue-500" />
+                    Performance Chart
+                  </CardTitle>
+                  <CardDescription className="text-zinc-500">Track your progress and growth over time</CardDescription>
+                </div>
               
               <div className="flex flex-wrap items-center gap-2">
                 {/* Metric Selector */}
@@ -173,13 +185,14 @@ export default function PerformanceAnalytics({ data, initialBankroll }: Performa
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#18181b" vertical={false} />
                   <XAxis 
-                    dataKey="date" 
-                    stroke="#52525b" 
-                    fontSize={10} 
-                    tickLine={false} 
-                    axisLine={false} 
-                    minTickGap={30}
-                  />
+                      dataKey="date" 
+                      stroke="#52525b" 
+                      fontSize={9} 
+                      tickLine={false} 
+                      axisLine={false} 
+                      minTickGap={60}
+                      interval="preserveStartEnd"
+                    />
                   <YAxis 
                     stroke="#52525b" 
                     fontSize={10} 
@@ -188,11 +201,36 @@ export default function PerformanceAnalytics({ data, initialBankroll }: Performa
                     tickFormatter={formatYAxis}
                   />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: '#09090b', border: '1px solid #27272a', borderRadius: '8px' }}
-                    itemStyle={{ color: '#3b82f6', fontWeight: 'bold' }}
-                    labelStyle={{ color: '#52525b', fontSize: '10px' }}
-                    formatter={(val: number) => [formatYAxis(val), metric.toUpperCase()]}
-                  />
+                      contentStyle={{ backgroundColor: '#09090b', border: '1px solid #27272a', borderRadius: '8px', padding: '12px' }}
+                      labelStyle={{ color: '#71717a', fontSize: '10px', marginBottom: '8px' }}
+                      content={({ active, payload, label }) => {
+                        if (!active || !payload || !payload[0]) return null;
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 min-w-[160px]">
+                            <p className="text-[10px] text-zinc-500 mb-2">{data.fullDate}</p>
+                            <div className="space-y-1">
+                              <div className="flex justify-between items-center">
+                                <span className="text-[10px] text-zinc-500">Bankroll</span>
+                                <span className="text-sm font-bold text-white">{data.bankroll}€</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-[10px] text-zinc-500">Profit</span>
+                                <span className={`text-sm font-bold ${data.profit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                  {data.profit >= 0 ? '+' : ''}{data.profit}€
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-[10px] text-zinc-500">ROI</span>
+                                <span className={`text-sm font-bold ${data.roi >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                  {data.roi >= 0 ? '+' : ''}{data.roi}%
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }}
+                    />
                   <Area 
                     type="monotone" 
                     dataKey="value" 
@@ -209,14 +247,14 @@ export default function PerformanceAnalytics({ data, initialBankroll }: Performa
         </Card>
 
         {/* Market Analysis */}
-        <Card className="bg-zinc-950 border-zinc-900 overflow-hidden">
-          <CardHeader className="border-b border-zinc-900 pb-4">
-            <CardTitle className="text-xl font-bold uppercase tracking-tight flex items-center gap-2">
-              <PieChart size={18} className="text-emerald-500" />
-              Market Efficiency
-            </CardTitle>
-            <CardDescription className="text-zinc-500">Performance by betting market.</CardDescription>
-          </CardHeader>
+          <Card className="bg-zinc-950 border-zinc-900 overflow-hidden">
+            <CardHeader className="border-b border-zinc-900 pb-4">
+              <CardTitle className="text-xl font-bold tracking-tight flex items-center gap-2">
+                <PieChart size={18} className="text-emerald-500" />
+                Results by Market
+              </CardTitle>
+              <CardDescription className="text-zinc-500">Performance breakdown by bet type</CardDescription>
+            </CardHeader>
           <CardContent className="pt-6">
             <div className="space-y-4">
               {Object.entries(markets).length > 0 ? (
@@ -258,7 +296,7 @@ function MetricButton({ active, onClick, label }: { active: boolean, onClick: ()
     <button
       onClick={onClick}
       className={cn(
-        "px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded transition-all",
+        "cursor-pointer px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded transition-all",
         active ? "bg-blue-600 text-white shadow-lg" : "text-zinc-500 hover:text-zinc-300"
       )}
     >
@@ -272,7 +310,7 @@ function TimeFrameButton({ active, onClick, label }: { active: boolean, onClick:
     <button
       onClick={onClick}
       className={cn(
-        "px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded transition-all",
+        "cursor-pointer px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded transition-all",
         active ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-300"
       )}
     >
