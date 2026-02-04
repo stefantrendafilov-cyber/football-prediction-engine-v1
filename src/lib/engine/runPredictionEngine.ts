@@ -7,6 +7,34 @@ import { getExpectedGoals, calculateProbabilitiesWithPenalty } from '../models/p
 import { adjustProbability } from '../model/probAdjust';
 import { ENGINE_RULES, OU_LINES } from '../constants/markets';
 
+async function getProtectedPredictionIds(fixtureIds: number[]): Promise<Set<string>> {
+  if (fixtureIds.length === 0) return new Set();
+
+  const { data: predictionsWithBets } = await supabase
+    .from('user_bets')
+    .select('prediction_id')
+    .in('fixture_id', fixtureIds);
+
+  const { data: settledPredictions } = await supabase
+    .from('predictions')
+    .select('id')
+    .in('fixture_id', fixtureIds)
+    .eq('decision', 'PUBLISH')
+    .not('outcome', 'is', null);
+
+  const protectedIds = new Set<string>();
+  
+  predictionsWithBets?.forEach(b => {
+    if (b.prediction_id) protectedIds.add(b.prediction_id);
+  });
+  
+  settledPredictions?.forEach(p => {
+    protectedIds.add(p.id);
+  });
+
+  return protectedIds;
+}
+
 interface Candidate {
   fixture_id: number;
   kickoff_utc: string;
@@ -149,11 +177,24 @@ export async function runPredictionEngine(cycleId?: string) {
         ]);
 
         if (homeHistory.length < ENGINE_RULES.HISTORY_MATCHES || awayHistory.length < ENGINE_RULES.HISTORY_MATCHES) {
-          await supabase
+          const protectedIds = await getProtectedPredictionIds([fixtureId]);
+          
+          const { data: existingPublish } = await supabase
             .from('predictions')
-            .update({ decision: 'BLOCK', reason: 'REPLACED_BY_NEW_RUN' })
+            .select('id')
             .eq('fixture_id', fixtureId)
             .eq('decision', 'PUBLISH');
+          
+          const idsToBlock = (existingPublish || [])
+            .filter(p => !protectedIds.has(p.id))
+            .map(p => p.id);
+          
+          if (idsToBlock.length > 0) {
+            await supabase
+              .from('predictions')
+              .update({ decision: 'BLOCK', reason: 'REPLACED_BY_NEW_RUN' })
+              .in('id', idsToBlock);
+          }
             
           await supabase.from('predictions').insert({
               fixture_id: fixtureId,
@@ -402,11 +443,26 @@ export async function runPredictionEngine(cycleId?: string) {
     ]));
     
     if (fixtureIds.length > 0) {
-      await supabase
+      const protectedIds = await getProtectedPredictionIds(fixtureIds);
+      
+      const { data: existingPublish } = await supabase
         .from('predictions')
-        .update({ decision: 'BLOCK', reason: 'REPLACED_BY_NEW_RUN' })
+        .select('id')
         .in('fixture_id', fixtureIds)
         .eq('decision', 'PUBLISH');
+      
+      const idsToBlock = (existingPublish || [])
+        .filter(p => !protectedIds.has(p.id))
+        .map(p => p.id);
+      
+      if (idsToBlock.length > 0) {
+        await supabase
+          .from('predictions')
+          .update({ decision: 'BLOCK', reason: 'REPLACED_BY_NEW_RUN' })
+          .in('id', idsToBlock);
+      }
+      
+      console.log(`Protected ${protectedIds.size} predictions (have bets or settled). Blocked ${idsToBlock.length} replaceable predictions.`);
     }
 
     const allRows = [...finalPublishRows, ...allBlockedRows];
